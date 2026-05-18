@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Deutsch Trainer
 
-## Getting Started
+Личное PWA для изучения немецкого языка. Загружаешь скрин страницы учебника — AI разбирает его на слова, грамматику и примеры, создаёт флешкарты с FSRS-повторением (как в Anki).
 
-First, run the development server:
+## Статус
 
-```bash
+В разработке. Технический дизайн утверждён.
+
+## Документация
+
+Документация разбита на 9 файлов в [`docs/`](docs/README.md):
+
+| # | Документ | О чём |
+|---|---|---|
+| 01 | [Обзор](docs/01-overview.md) | Цели, не-цели, стек |
+| 02 | [Архитектура](docs/02-architecture.md) | Схема и потоки |
+| 03 | [База данных](docs/03-database.md) | SQL-схема |
+| 04 | [API](docs/04-api.md) | Endpoints |
+| 05 | [Промты Gemini](docs/05-prompts.md) | System prompts + schemas |
+| 06 | [Frontend и PWA](docs/06-frontend.md) | UI/UX, тёмная тема |
+| 07 | [Безопасность](docs/07-security.md) | Password gate, ключи |
+| 08 | [Деплой](docs/08-deployment.md) | Vercel + Supabase + Gemini |
+| 09 | [Roadmap](docs/09-roadmap.md) | Спринты, FSRS, риски |
+
+## Стек
+
+- Next.js 15 + TypeScript + Tailwind + shadcn/ui
+- Supabase (Postgres + Storage)
+- Google Gemini 2.0 Flash (vision + текст, бесплатно)
+- ts-fsrs (интервальное повторение)
+- Web Speech API (TTS на немецком)
+- Vercel Hobby (хостинг, бесплатно)
+- PWA с share_target
+
+## Быстрый старт (когда код появится)
+
+```powershell
+cp .env.local.example .env.local
+# заполнить APP_PASSWORD, GEMINI_API_KEY, Supabase ключи
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+См. [docs/08-deployment.md](docs/08-deployment.md) для полной инструкции.
