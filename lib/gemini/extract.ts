@@ -1,5 +1,5 @@
 import 'server-only';
-import { getGemini, GEMINI_MODEL } from './client';
+import { getGemini, GEMINI_MODEL, GEMINI_FALLBACK_MODEL } from './client';
 import {
   EXTRACT_SYSTEM_PROMPT,
   extractResponseSchema,
@@ -7,25 +7,45 @@ import {
   type ExtractPayload,
 } from './prompts';
 
-const MAX_ATTEMPTS = 3;
-const RATE_LIMIT_DELAY_MS = 5000;
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Транзиентные ошибки, которые имеет смысл повторить с задержкой:
+ *  - 429 Too Many Requests
+ *  - 5xx (Service Unavailable, Internal, Gateway Timeout)
+ *  - сетевые ошибки fetch
+ *  - текстовые маркеры "overloaded", "currently unavailable"
+ */
+function isTransient(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/\b(429|500|502|503|504)\b/.test(msg)) return true;
+  if (/rate.?limit|quota|overload|unavailable|timeout|ECONNRESET|ETIMEDOUT|fetch failed/i.test(msg)) {
+    return true;
+  }
+  return false;
+}
+
+type Attempt = { model: string; preDelayMs: number };
+
+const ATTEMPTS: Attempt[] = [
+  { model: GEMINI_MODEL, preDelayMs: 0 },
+  { model: GEMINI_MODEL, preDelayMs: 2000 },
+  { model: GEMINI_FALLBACK_MODEL, preDelayMs: 1000 },
+  { model: GEMINI_FALLBACK_MODEL, preDelayMs: 4000 },
+];
+
 export type ExtractFromImageResult = {
   payload: ExtractPayload;
+  modelUsed: string;
   attempts: number;
   latencyMs: number;
 };
 
-export async function extractFromImage(
-  image: { buffer: Buffer; mimeType: string },
-): Promise<ExtractFromImageResult> {
-  const base64 = image.buffer.toString('base64');
+async function callOnce(modelName: string, image: { buffer: Buffer; mimeType: string }) {
   const model = getGemini().getGenerativeModel({
-    model: GEMINI_MODEL,
+    model: modelName,
     systemInstruction: EXTRACT_SYSTEM_PROMPT,
     generationConfig: {
       responseMimeType: 'application/json',
@@ -34,33 +54,42 @@ export async function extractFromImage(
       maxOutputTokens: 8192,
     },
   });
+  const res = await model.generateContent([
+    { text: 'Извлеки учебный материал со скриншота. Верни строго JSON по схеме.' },
+    { inlineData: { mimeType: image.mimeType, data: image.buffer.toString('base64') } },
+  ]);
+  const text = res.response.text();
+  const parsed = JSON.parse(text);
+  return extractPayloadSchema.parse(parsed);
+}
 
+export async function extractFromImage(image: {
+  buffer: Buffer;
+  mimeType: string;
+}): Promise<ExtractFromImageResult> {
   const started = Date.now();
   let lastErr: unknown = null;
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+  for (let i = 0; i < ATTEMPTS.length; i++) {
+    const { model: modelName, preDelayMs } = ATTEMPTS[i];
+    if (preDelayMs > 0) await sleep(preDelayMs);
+
     try {
-      const res = await model.generateContent([
-        { text: 'Извлеки учебный материал со скриншота. Верни строго JSON по схеме.' },
-        { inlineData: { mimeType: image.mimeType, data: base64 } },
-      ]);
-      const text = res.response.text();
-      const parsed = JSON.parse(text);
-      const validated = extractPayloadSchema.parse(parsed);
-      return { payload: validated, attempts: attempt, latencyMs: Date.now() - started };
+      const payload = await callOnce(modelName, image);
+      return {
+        payload,
+        modelUsed: modelName,
+        attempts: i + 1,
+        latencyMs: Date.now() - started,
+      };
     } catch (e: unknown) {
       lastErr = e;
       const msg = e instanceof Error ? e.message : String(e);
-      const isRateLimit = /429|rate.?limit|quota/i.test(msg);
-      const isLastAttempt = attempt === MAX_ATTEMPTS;
-      if (isRateLimit && !isLastAttempt) {
-        await sleep(RATE_LIMIT_DELAY_MS);
-        continue;
-      }
-      if (isLastAttempt) break;
+      console.warn(`[gemini] attempt ${i + 1}/${ATTEMPTS.length} (${modelName}) failed: ${msg.slice(0, 200)}`);
+      if (!isTransient(e)) break;
     }
   }
 
   const detail = lastErr instanceof Error ? lastErr.message : String(lastErr);
-  throw new Error(`Gemini extract failed after ${MAX_ATTEMPTS} attempts: ${detail}`);
+  throw new Error(`Gemini extract failed after ${ATTEMPTS.length} attempts: ${detail}`);
 }

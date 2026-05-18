@@ -18,7 +18,7 @@ type ExtractResponse = {
   cached: boolean;
 };
 
-type Status = 'idle' | 'extracting' | 'preview' | 'saving';
+type Status = 'idle' | 'extracting' | 'preview' | 'saving' | 'error';
 
 function defaultSelection(preview: ExtractPayload): Selection {
   const all = (n: number) => new Set(Array.from({ length: n }, (_, i) => i));
@@ -95,8 +95,10 @@ export default function UploadPage() {
   const [extract, setExtract] = useState<ExtractResponse | null>(null);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lastFile, setLastFile] = useState<File | null>(null);
 
   async function handleFile(file: File) {
+    setLastFile(file);
     setStatus('extracting');
     setError(null);
     const fd = new FormData();
@@ -113,11 +115,19 @@ export default function UploadPage() {
       setStatus('preview');
       if (data.cached) toast.info('Этот скрин уже обрабатывался — показан закешированный результат');
     } catch (e) {
-      setStatus('idle');
+      setStatus('error');
       const msg = e instanceof Error ? e.message : 'Неизвестная ошибка';
       setError(msg);
-      toast.error(`Не удалось извлечь: ${msg}`);
+      toast.error('Не удалось извлечь', { description: msg });
     }
+  }
+
+  function resetAll() {
+    setExtract(null);
+    setSelection(null);
+    setStatus('idle');
+    setError(null);
+    setLastFile(null);
   }
 
   async function handleSave() {
@@ -169,9 +179,31 @@ export default function UploadPage() {
         <Alert>
           <Loader2 className="size-4 animate-spin" />
           <AlertDescription>
-            Gemini обрабатывает изображение… (обычно 2–8 секунд)
+            Gemini обрабатывает изображение… (обычно 5–30 секунд, при перегрузке API — до минуты с автоповтором)
           </AlertDescription>
         </Alert>
+      )}
+
+      {status === 'error' && (
+        <div className="flex flex-col gap-4">
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => lastFile && handleFile(lastFile)}
+              disabled={!lastFile}
+            >
+              Попробовать снова
+            </Button>
+            <Button variant="outline" onClick={resetAll}>
+              Загрузить другой
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Если ошибка 503 повторяется — модель Gemini сейчас перегружена. Подожди минуту-другую и попробуй снова. Затраты на API не списываются при ошибках.
+          </p>
+        </div>
       )}
 
       {(status === 'preview' || status === 'saving') && extract && selection && (
@@ -187,12 +219,7 @@ export default function UploadPage() {
           <div className="sticky bottom-0 -mx-6 px-6 py-3 border-t bg-background/95 backdrop-blur flex items-center gap-3">
             <Button
               variant="outline"
-              onClick={() => {
-                setExtract(null);
-                setSelection(null);
-                setStatus('idle');
-                setError(null);
-              }}
+              onClick={resetAll}
               disabled={status === 'saving'}
             >
               Загрузить другой
