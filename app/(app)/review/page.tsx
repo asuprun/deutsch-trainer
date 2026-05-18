@@ -1,0 +1,221 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { Loader2, X, RotateCw, Home } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { ReviewCard, type ReviewCardData } from '@/components/review-card';
+import { RatingButtons, type RatingIntervals } from '@/components/rating-buttons';
+import type { Grade } from 'ts-fsrs';
+
+type QueueCard = ReviewCardData & {
+  intervals: RatingIntervals | null;
+};
+
+type QueueResponse = {
+  queue: QueueCard[];
+  due_count_total: number;
+};
+
+type Status = 'loading' | 'empty' | 'active' | 'done' | 'error';
+
+export default function ReviewPage() {
+  const router = useRouter();
+  const [status, setStatus] = useState<Status>('loading');
+  const [queue, setQueue] = useState<QueueCard[]>([]);
+  const [idx, setIdx] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const [done, setDone] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadQueue = useCallback(async () => {
+    setStatus('loading');
+    setError(null);
+    try {
+      const res = await fetch('/api/review/queue?limit=20');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
+      }
+      const data: QueueResponse = await res.json();
+      if (data.queue.length === 0) {
+        setStatus('empty');
+      } else {
+        setQueue(data.queue);
+        setIdx(0);
+        setFlipped(false);
+        setDone(0);
+        setStatus('active');
+      }
+    } catch (e) {
+      setStatus('error');
+      setError(e instanceof Error ? e.message : 'Не удалось загрузить очередь');
+    }
+  }, []);
+
+  useEffect(() => {
+    loadQueue();
+  }, [loadQueue]);
+
+  const current = status === 'active' ? queue[idx] : null;
+
+  const handleRate = useCallback(
+    async (rating: Grade) => {
+      if (!current || submitting) return;
+      setSubmitting(true);
+      try {
+        const res = await fetch('/api/review/answer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ card_id: current.id, rating }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
+        }
+      } catch (e) {
+        toast.error('Не удалось сохранить ответ', {
+          description: e instanceof Error ? e.message : '',
+        });
+      } finally {
+        setSubmitting(false);
+      }
+
+      const next = idx + 1;
+      setDone((d) => d + 1);
+      if (next >= queue.length) {
+        setStatus('done');
+      } else {
+        setIdx(next);
+        setFlipped(false);
+      }
+    },
+    [current, idx, queue.length, submitting],
+  );
+
+  useEffect(() => {
+    if (status !== 'active') return;
+    function onKey(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        if (!flipped) setFlipped(true);
+        return;
+      }
+      if (flipped && ['1', '2', '3', '4'].includes(e.key)) {
+        e.preventDefault();
+        handleRate(Number(e.key) as Grade);
+        return;
+      }
+      if (e.key === 'Escape') {
+        router.push('/');
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [status, flipped, handleRate, router]);
+
+  if (status === 'loading') {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <div className="p-6 max-w-xl">
+        <h1 className="text-2xl font-semibold mb-2">Ошибка</h1>
+        <p className="text-sm text-destructive mb-4">{error}</p>
+        <Button onClick={loadQueue}>
+          <RotateCw className="size-4 mr-2" />
+          Попробовать снова
+        </Button>
+      </div>
+    );
+  }
+
+  if (status === 'empty') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-6 text-center">
+        <h1 className="text-3xl font-semibold">Карт к повторению пока нет</h1>
+        <p className="text-muted-foreground max-w-md">
+          Загрузи скрин страницы учебника, чтобы создать первые карты, или подожди, пока подойдёт время повторения.
+        </p>
+        <div className="flex gap-3 mt-2">
+          <Button asChild>
+            <Link href="/upload">Загрузить скрин</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/">На главную</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'done') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-6 text-center">
+        <h1 className="text-3xl font-semibold">Сессия завершена</h1>
+        <p className="text-muted-foreground">Повторено карт: {done}</p>
+        <div className="flex gap-3 mt-2">
+          <Button onClick={loadQueue}>
+            <RotateCw className="size-4 mr-2" />
+            Ещё одна сессия
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/">
+              <Home className="size-4 mr-2" />
+              На главную
+            </Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!current) return null;
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      <header className="flex items-center gap-3 border-b px-4 py-3 sm:px-6">
+        <Button variant="ghost" size="icon" asChild>
+          <Link href="/" aria-label="Закрыть тренировку">
+            <X className="size-5" />
+          </Link>
+        </Button>
+        <div className="flex-1">
+          <Progress value={(idx / queue.length) * 100} className="h-2" />
+        </div>
+        <span className="text-sm tabular-nums text-muted-foreground">
+          {idx + 1} / {queue.length}
+        </span>
+      </header>
+
+      <main className="flex-1 flex flex-col items-center justify-center p-6 gap-8">
+        <ReviewCard card={current} flipped={flipped} />
+
+        {!flipped && (
+          <Button size="lg" onClick={() => setFlipped(true)}>
+            Показать ответ
+            <kbd className="ml-2 rounded bg-black/20 px-1.5 py-0.5 text-xs font-mono">Space</kbd>
+          </Button>
+        )}
+      </main>
+
+      {flipped && (
+        <footer className="border-t p-4 sm:p-6 bg-background/95 backdrop-blur sticky bottom-0">
+          <div className="max-w-3xl mx-auto">
+            <RatingButtons intervals={current.intervals} onRate={handleRate} disabled={submitting} />
+          </div>
+        </footer>
+      )}
+    </div>
+  );
+}

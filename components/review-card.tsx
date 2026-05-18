@@ -1,0 +1,136 @@
+'use client';
+
+import { useEffect } from 'react';
+import { TTSButton } from '@/components/tts-button';
+import { Badge } from '@/components/ui/badge';
+import { useTTS } from '@/lib/hooks/use-tts';
+import { cn } from '@/lib/utils';
+
+const GENDER_COLOR: Record<string, string> = {
+  der: 'text-blue-400',
+  die: 'text-pink-400',
+  das: 'text-emerald-400',
+};
+
+const WORD_TYPE_LABEL: Record<string, string> = {
+  noun: 'сущ.',
+  verb: 'глаг.',
+  adj: 'прил.',
+  adv: 'нар.',
+  prep: 'предл.',
+  conj: 'союз',
+  pron: 'мест.',
+  num: 'числ.',
+  interj: 'межд.',
+  other: '',
+};
+
+export type ReviewCardData = {
+  id: string;
+  kind: 'vocab' | 'phrase' | 'grammar_rule' | 'sentence';
+  front: string;
+  back: string;
+  word_type?: string | null;
+  gender?: string | null;
+  plural?: string | null;
+  forms?: Record<string, unknown> | null;
+  examples?: Array<{ de: string; ru: string }> | null;
+  mnemonic?: string | null;
+  tags?: string[] | null;
+};
+
+type Props = {
+  card: ReviewCardData;
+  flipped: boolean;
+  autoTts?: boolean;
+};
+
+export function ReviewCard({ card, flipped, autoTts = true }: Props) {
+  const { speak } = useTTS();
+
+  useEffect(() => {
+    if (flipped && autoTts && card.front) {
+      const t = setTimeout(() => speak(card.front), 150);
+      return () => clearTimeout(t);
+    }
+  }, [flipped, card.id, card.front, speak, autoTts]);
+
+  const genderClass = card.gender ? GENDER_COLOR[card.gender] : undefined;
+  const wordTypeLabel = card.word_type ? WORD_TYPE_LABEL[card.word_type] : '';
+  const forms = card.forms as
+    | {
+        infinitiv?: string;
+        praeteritum?: string;
+        partizip_2?: string;
+        hilfsverb?: string;
+        trennbar?: boolean;
+        komparativ?: string;
+        superlativ?: string;
+      }
+    | null
+    | undefined;
+
+  return (
+    <div className="flex flex-col items-center gap-6 w-full">
+      <div className="flex items-baseline justify-center gap-3 flex-wrap text-center">
+        {card.gender && <span className={cn('font-serif text-3xl sm:text-4xl', genderClass)}>{card.gender}</span>}
+        <h2 className="font-serif text-4xl sm:text-5xl font-medium leading-tight tracking-tight">
+          {card.front}
+        </h2>
+        <TTSButton text={card.front} size="icon" />
+      </div>
+
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        {wordTypeLabel && <span>{wordTypeLabel}</span>}
+        {card.plural && <span>· мн. {card.plural}</span>}
+        {card.tags?.map((t) => (
+          <Badge key={t} variant="outline" className="text-xs">
+            {t}
+          </Badge>
+        ))}
+      </div>
+
+      {flipped && (
+        <>
+          <div className="w-full max-w-xl rounded-lg border bg-card p-4">
+            <p className="text-xl">{card.back}</p>
+
+            {forms?.infinitiv && (
+              <div className="mt-3 text-sm text-muted-foreground border-t pt-3">
+                {forms.infinitiv} · {forms.praeteritum} · {forms.partizip_2}
+                {forms.hilfsverb && ` · ${forms.hilfsverb}`}
+                {forms.trennbar && ' · отдел.'}
+              </div>
+            )}
+            {forms?.komparativ && (
+              <div className="mt-3 text-sm text-muted-foreground border-t pt-3">
+                {forms.komparativ} · {forms.superlativ}
+              </div>
+            )}
+          </div>
+
+          {card.examples && card.examples.length > 0 && (
+            <div className="w-full max-w-xl text-sm space-y-2">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Примеры</p>
+              {card.examples.map((ex, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <TTSButton text={ex.de} size="icon" className="size-7 mt-0.5" />
+                  <div>
+                    <div className="font-medium">{ex.de}</div>
+                    <div className="text-muted-foreground">{ex.ru}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {card.mnemonic && (
+            <div className="w-full max-w-xl rounded-md bg-amber-500/10 border border-amber-500/30 p-3 text-sm">
+              💡 {card.mnemonic}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
