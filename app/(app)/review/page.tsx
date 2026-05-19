@@ -8,6 +8,7 @@ import { Loader2, X, RotateCw, Home, FlipHorizontal2, Keyboard } from 'lucide-re
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ReviewCard, type ReviewCardData } from '@/components/review-card';
+import { SwipeCard } from '@/components/swipe-card';
 import { RatingButtons, type RatingIntervals } from '@/components/rating-buttons';
 import { TypingInput } from '@/components/typing-input';
 import type { Grade } from 'ts-fsrs';
@@ -238,7 +239,19 @@ export default function ReviewPage() {
 
       <main className="flex-1 flex flex-col items-center justify-center p-6 gap-8">
         {/* Карточка — в режиме ввода показываем только лицевую сторону до проверки */}
-        <ReviewCard card={current} flipped={mode === 'cards' ? flipped : false} />
+        {mode === 'cards' ? (
+          <SwipeCard
+            onSwipeLeft={flipped ? () => handleRate(1) : undefined}
+            onSwipeRight={flipped ? () => handleRate(4) : () => setFlipped(true)}
+            leftLabel={flipped ? '✗ Снова' : undefined}
+            rightLabel={flipped ? '✓ Легко' : '👁 Ответ'}
+            disabled={submitting}
+          >
+            <ReviewCard card={current} flipped={flipped} />
+          </SwipeCard>
+        ) : (
+          <ReviewCard card={current} flipped={false} />
+        )}
 
         {mode === 'cards' && !flipped && (
           <Button size="lg" onClick={() => setFlipped(true)}>
