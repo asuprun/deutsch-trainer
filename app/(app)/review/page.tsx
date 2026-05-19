@@ -4,11 +4,12 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Loader2, X, RotateCw, Home } from 'lucide-react';
+import { Loader2, X, RotateCw, Home, FlipHorizontal2, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ReviewCard, type ReviewCardData } from '@/components/review-card';
 import { RatingButtons, type RatingIntervals } from '@/components/rating-buttons';
+import { TypingInput } from '@/components/typing-input';
 import type { Grade } from 'ts-fsrs';
 
 type QueueCard = ReviewCardData & {
@@ -21,6 +22,7 @@ type QueueResponse = {
 };
 
 type Status = 'loading' | 'empty' | 'active' | 'done' | 'error';
+type Mode = 'cards' | 'typing';
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -31,6 +33,7 @@ export default function ReviewPage() {
   const [done, setDone] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<Mode>('cards');
 
   const loadQueue = useCallback(async () => {
     setStatus('loading');
@@ -63,6 +66,17 @@ export default function ReviewPage() {
 
   const current = status === 'active' ? queue[idx] : null;
 
+  const advance = useCallback(() => {
+    const next = idx + 1;
+    setDone((d) => d + 1);
+    if (next >= queue.length) {
+      setStatus('done');
+    } else {
+      setIdx(next);
+      setFlipped(false);
+    }
+  }, [idx, queue.length]);
+
   const handleRate = useCallback(
     async (rating: Grade) => {
       if (!current || submitting) return;
@@ -84,21 +98,14 @@ export default function ReviewPage() {
       } finally {
         setSubmitting(false);
       }
-
-      const next = idx + 1;
-      setDone((d) => d + 1);
-      if (next >= queue.length) {
-        setStatus('done');
-      } else {
-        setIdx(next);
-        setFlipped(false);
-      }
+      advance();
     },
-    [current, idx, queue.length, submitting],
+    [current, submitting, advance],
   );
 
+  // Клавиши — только в режиме карточек
   useEffect(() => {
-    if (status !== 'active') return;
+    if (status !== 'active' || mode !== 'cards') return;
     function onKey(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === ' ' || e.key === 'Spacebar') {
@@ -111,13 +118,11 @@ export default function ReviewPage() {
         handleRate(Number(e.key) as Grade);
         return;
       }
-      if (e.key === 'Escape') {
-        router.push('/');
-      }
+      if (e.key === 'Escape') router.push('/');
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [status, flipped, handleRate, router]);
+  }, [status, mode, flipped, handleRate, router]);
 
   if (status === 'loading') {
     return (
@@ -145,7 +150,8 @@ export default function ReviewPage() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-6 text-center">
         <h1 className="text-3xl font-semibold">Карт к повторению пока нет</h1>
         <p className="text-muted-foreground max-w-md">
-          Загрузи скрин страницы учебника, чтобы создать первые карты, или подожди, пока подойдёт время повторения.
+          Загрузи скрин страницы учебника, чтобы создать первые карты, или подожди, пока подойдёт время
+          повторения.
         </p>
         <div className="flex gap-3 mt-2">
           <Button asChild>
@@ -184,32 +190,73 @@ export default function ReviewPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="flex items-center gap-3 border-b px-4 py-3 sm:px-6">
+      <header className="flex items-center gap-2 border-b px-4 py-3 sm:px-6">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/" aria-label="Закрыть тренировку">
             <X className="size-5" />
           </Link>
         </Button>
+
         <div className="flex-1">
           <Progress value={(idx / queue.length) * 100} className="h-2" />
         </div>
-        <span className="text-sm tabular-nums text-muted-foreground">
+
+        <span className="text-sm tabular-nums text-muted-foreground mr-1">
           {idx + 1} / {queue.length}
         </span>
+
+        {/* Переключатель режима */}
+        <div className="flex rounded-md border overflow-hidden">
+          <button
+            onClick={() => { setMode('cards'); setFlipped(false); }}
+            title="Режим карточек"
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs transition-colors ${
+              mode === 'cards'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <FlipHorizontal2 className="size-3.5" />
+            <span className="hidden sm:inline">Карточки</span>
+          </button>
+          <button
+            onClick={() => { setMode('typing'); setFlipped(false); }}
+            title="Режим ввода"
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs transition-colors border-l ${
+              mode === 'typing'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <Keyboard className="size-3.5" />
+            <span className="hidden sm:inline">Ввод</span>
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center p-6 gap-8">
-        <ReviewCard card={current} flipped={flipped} />
+        {/* Карточка — в режиме ввода показываем только лицевую сторону до проверки */}
+        <ReviewCard card={current} flipped={mode === 'cards' ? flipped : false} />
 
-        {!flipped && (
+        {mode === 'cards' && !flipped && (
           <Button size="lg" onClick={() => setFlipped(true)}>
             Показать ответ
             <kbd className="ml-2 rounded bg-black/20 px-1.5 py-0.5 text-xs font-mono">Space</kbd>
           </Button>
         )}
+
+        {mode === 'typing' && (
+          <TypingInput
+            key={current.id}
+            correctAnswer={current.back}
+            intervals={current.intervals}
+            onRate={handleRate}
+            disabled={submitting}
+          />
+        )}
       </main>
 
-      {flipped && (
+      {mode === 'cards' && flipped && (
         <footer className="border-t p-4 sm:p-6 bg-background/95 backdrop-blur sticky bottom-0">
           <div className="max-w-3xl mx-auto">
             <RatingButtons intervals={current.intervals} onRate={handleRate} disabled={submitting} />
