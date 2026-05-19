@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Loader2, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Pencil, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -57,6 +57,7 @@ export default function CardsPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [kind, setKind] = useState<string>('all');
+  const [tag, setTag] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Debounce search
@@ -76,6 +77,7 @@ export default function CardsPage() {
       params.set('limit', String(LIMIT));
       if (debouncedSearch) params.set('search', debouncedSearch);
       if (kind !== 'all') params.set('kind', kind);
+      if (tag) params.set('tag', tag);
 
       const res = await fetch(`/api/cards?${params}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -89,7 +91,7 @@ export default function CardsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, kind]);
+  }, [page, debouncedSearch, kind, tag]);
 
   useEffect(() => {
     fetchCards();
@@ -98,7 +100,7 @@ export default function CardsPage() {
   // Reset page when filters change
   useEffect(() => {
     setPage(0);
-  }, [kind]);
+  }, [kind, tag]);
 
   async function handleDelete(id: string) {
     if (!window.confirm('Удалить карту? Это действие нельзя отменить.')) return;
@@ -148,6 +150,21 @@ export default function CardsPage() {
         </div>
       </div>
 
+      {/* Active tag chip */}
+      {tag && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Тег:</span>
+          <Badge
+            variant="secondary"
+            className="flex items-center gap-1 cursor-pointer"
+            onClick={() => setTag('')}
+          >
+            {tag}
+            <X className="size-3" />
+          </Badge>
+        </div>
+      )}
+
       {/* Count */}
       {!loading && (
         <p className="text-sm text-muted-foreground">
@@ -178,6 +195,7 @@ export default function CardsPage() {
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Тип</th>
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Слово</th>
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground hidden sm:table-cell">Перевод</th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground hidden md:table-cell">Теги</th>
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground hidden md:table-cell">До повтора</th>
                 <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Действия</th>
               </tr>
@@ -195,6 +213,23 @@ export default function CardsPage() {
                   <td className="px-3 py-2.5 font-medium max-w-[180px] truncate">{card.front}</td>
                   <td className="px-3 py-2.5 text-muted-foreground hidden sm:table-cell max-w-[180px] truncate">
                     {card.back}
+                  </td>
+                  <td className="px-3 py-2.5 hidden md:table-cell">
+                    <div className="flex flex-wrap gap-1">
+                      {card.tags?.map((t) => (
+                        <Badge
+                          key={t}
+                          variant="outline"
+                          className="text-xs cursor-pointer hover:bg-primary/20"
+                          onClick={() => {
+                            setTag(t);
+                            setPage(0);
+                          }}
+                        >
+                          {t}
+                        </Badge>
+                      ))}
+                    </div>
                   </td>
                   <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell tabular-nums">
                     {card.due_at ? formatInterval(card.due_at) : '—'}
