@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TtsVoicePicker } from '@/components/tts-voice-picker';
 import { LocaleToggle } from '@/components/locale-toggle';
+import { PushToggle } from '@/components/push-toggle';
 import { useI18n } from '@/lib/i18n/context';
 
 type SettingsData = {
@@ -204,6 +205,16 @@ export default function SettingsPage() {
                   onChange={handleChange('tts_rate')}
                 />
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Уведомления */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Уведомления</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PushToggle />
             </CardContent>
           </Card>
 

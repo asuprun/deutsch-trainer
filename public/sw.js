@@ -34,3 +34,30 @@ self.addEventListener('fetch', (e) => {
     })
   );
 });
+
+// ── Push notifications ────────────────────────────────────────────────────────
+
+self.addEventListener('push', (e) => {
+  const data = e.data?.json?.() ?? {};
+  e.waitUntil(
+    self.registration.showNotification(data.title ?? 'Deutsch Trainer', {
+      body: data.body ?? 'Время повторить карточки!',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: 'review-reminder',
+      data: { url: data.url ?? '/review' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = e.notification.data?.url ?? '/review';
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      const existing = list.find((c) => c.url.includes(url));
+      if (existing) return existing.focus();
+      return clients.openWindow(url);
+    })
+  );
+});
