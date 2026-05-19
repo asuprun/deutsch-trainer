@@ -12,6 +12,7 @@ import {
   BarChart3,
   Settings,
   LogOut,
+  FileDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { href: '/cards', label: 'Карты', icon: Layers },
   { href: '/grammar', label: 'Грамматика', icon: BookOpen },
   { href: '/decks', label: 'Колоды', icon: FolderOpen },
+  { href: '/import', label: 'Импорт', icon: FileDown },
   { href: '/stats', label: 'Статистика', icon: BarChart3 },
   { href: '/settings', label: 'Настройки', icon: Settings },
 ];
