@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { BookOpen, Dumbbell } from 'lucide-react';
+import { BookOpen, ChevronLeft, Dumbbell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,6 +13,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { GrammarExerciseSession } from '@/components/grammar-exercise-session';
+import { GrammarSentenceBuilder } from '@/components/grammar-sentence-builder';
 import { cn } from '@/lib/utils';
 
 type GrammarNote = {
@@ -26,6 +27,7 @@ type GrammarNote = {
 };
 
 type Tab = 'rules' | 'exercises';
+type ExerciseMode = 'fill' | 'builder';
 
 /** Простой markdown-рендер: параграфы по \n\n, **bold** */
 function renderMarkdown(text: string): React.ReactNode[] {
@@ -58,6 +60,7 @@ export default function GrammarPage() {
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<Tab>('rules');
   const [activeNote, setActiveNote] = useState<{ id: string; title: string } | null>(null);
+  const [exerciseMode, setExerciseMode] = useState<ExerciseMode | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -96,7 +99,7 @@ export default function GrammarPage() {
       {/* ── Tab switcher ── */}
       <div className="flex rounded-lg border overflow-hidden w-fit">
         <button
-          onClick={() => { setTab('rules'); setActiveNote(null); }}
+          onClick={() => { setTab('rules'); setActiveNote(null); setExerciseMode(null); }}
           className={cn(
             'flex items-center gap-2 px-4 py-2 text-sm transition-colors',
             tab === 'rules'
@@ -108,7 +111,7 @@ export default function GrammarPage() {
           Правила
         </button>
         <button
-          onClick={() => { setTab('exercises'); setActiveNote(null); }}
+          onClick={() => { setTab('exercises'); setActiveNote(null); setExerciseMode(null); }}
           className={cn(
             'flex items-center gap-2 px-4 py-2 text-sm transition-colors border-l',
             tab === 'exercises'
@@ -186,6 +189,7 @@ export default function GrammarPage() {
                         variant="outline"
                         onClick={() => {
                           setActiveNote({ id: note.id, title: note.title });
+                          setExerciseMode(null);
                           setTab('exercises');
                         }}
                       >
@@ -204,15 +208,62 @@ export default function GrammarPage() {
       {/* ════════════════════════ TAB: УПРАЖНЕНИЯ ════════════════════════════ */}
       {tab === 'exercises' && (
         <>
-          {/* Exercise session */}
-          {activeNote ? (
+          {/* Fill-in-the-blank session */}
+          {activeNote && exerciseMode === 'fill' && (
             <GrammarExerciseSession
               noteId={activeNote.id}
               noteTitle={activeNote.title}
-              onBack={() => setActiveNote(null)}
+              onBack={() => { setExerciseMode(null); }}
             />
-          ) : (
-            /* Topic picker */
+          )}
+
+          {/* Sentence builder session */}
+          {activeNote && exerciseMode === 'builder' && (
+            <GrammarSentenceBuilder
+              noteId={activeNote.id}
+              noteTitle={activeNote.title}
+              onBack={() => { setExerciseMode(null); }}
+            />
+          )}
+
+          {/* Mode picker — shown when topic selected but no mode yet */}
+          {activeNote && exerciseMode === null && (
+            <div className="flex flex-col gap-5 max-w-sm">
+              <div>
+                <p className="text-sm text-muted-foreground">Тема:</p>
+                <p className="font-medium mt-0.5">{activeNote.title}</p>
+              </div>
+              <p className="text-sm font-medium">Выбери режим:</p>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  onClick={() => setExerciseMode('fill')}
+                  className="flex-1 flex flex-col items-center gap-2 rounded-xl border px-5 py-4 text-sm font-medium hover:bg-muted/60 transition-colors"
+                >
+                  <span className="text-2xl">📝</span>
+                  Заполни пропуск
+                </button>
+                <button
+                  onClick={() => setExerciseMode('builder')}
+                  className="flex-1 flex flex-col items-center gap-2 rounded-xl border px-5 py-4 text-sm font-medium hover:bg-muted/60 transition-colors"
+                >
+                  <span className="text-2xl">🔀</span>
+                  Составь предложение
+                </button>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="self-start"
+                onClick={() => { setActiveNote(null); setExerciseMode(null); }}
+              >
+                <ChevronLeft className="size-4 mr-1" />
+                К темам
+              </Button>
+            </div>
+          )}
+
+          {/* Topic picker — shown when no active note */}
+          {!activeNote && (
             <div className="flex flex-col gap-3">
               {loading ? (
                 Array.from({ length: 4 }).map((_, i) => (
@@ -242,7 +293,10 @@ export default function GrammarPage() {
                     <Button
                       size="sm"
                       className="shrink-0"
-                      onClick={() => setActiveNote({ id: note.id, title: note.title })}
+                      onClick={() => {
+                        setActiveNote({ id: note.id, title: note.title });
+                        setExerciseMode(null);
+                      }}
                     >
                       <Dumbbell className="size-3.5 mr-1.5" />
                       Тренировать
