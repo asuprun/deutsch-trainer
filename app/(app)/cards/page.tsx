@@ -3,13 +3,14 @@
 import React, { useEffect, useState, useCallback, Fragment, useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Loader2, Pencil, Trash2, ChevronLeft, ChevronRight, X, Check, ExternalLink } from 'lucide-react';
+import { Loader2, Pencil, Trash2, ChevronLeft, ChevronRight, X, Check, ExternalLink, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { formatInterval } from '@/lib/format/intervals';
+import { CreateCardDialog } from '@/components/create-card-dialog';
 
 type CardKind = 'vocab' | 'phrase' | 'grammar_rule' | 'sentence';
 
@@ -62,6 +63,7 @@ export default function CardsPage() {
   const [kind, setKind] = useState<string>('all');
   const [tag, setTag] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -227,9 +229,15 @@ export default function CardsPage() {
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Карты</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Все флешкарты базы данных</p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Карты</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Все флешкарты базы данных</p>
+        </div>
+        <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Plus className="size-4 mr-1.5" />
+          Добавить
+        </Button>
       </header>
 
       {/* Filters */}
@@ -521,6 +529,12 @@ export default function CardsPage() {
           </Button>
         </div>
       )}
+
+      <CreateCardDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={fetchCards}
+      />
     </div>
   );
 }

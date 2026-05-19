@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { createEmptyCard } from 'ts-fsrs';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
@@ -46,4 +48,39 @@ export async function GET(req: Request) {
   if (countErr) return err('DB_ERROR', countErr.message, 500);
 
   return NextResponse.json({ cards: cards ?? [], total: count ?? 0, page, limit });
+}
+
+const createSchema = z.object({
+  front: z.string().min(1).max(500),
+  back: z.string().min(1).max(2000),
+  kind: z.enum(['vocab', 'phrase', 'grammar_rule', 'sentence']).default('vocab'),
+  tags: z.array(z.string().max(50)).max(20).default([]),
+  word_type: z.string().max(40).nullable().optional(),
+  gender: z.string().max(10).nullable().optional(),
+});
+
+export async function POST(req: Request) {
+  let body: unknown;
+  try { body = await req.json(); } catch { return err('BAD_REQUEST', 'Invalid JSON', 400); }
+
+  const parsed = createSchema.safeParse(body);
+  if (!parsed.success) return err('VALIDATION_ERROR', 'Bad request', 400);
+
+  const db = getSupabaseAdmin();
+  const emptyCard = createEmptyCard();
+
+  const { data, error } = await db
+    .from('cards')
+    .insert({
+      ...parsed.data,
+      fsrs_state: JSON.parse(JSON.stringify(emptyCard)),
+      due_at: new Date().toISOString(),
+      reps: 0,
+      lapses: 0,
+    })
+    .select('*')
+    .maybeSingle();
+
+  if (error) return err('DB_ERROR', error.message, 500);
+  return NextResponse.json({ card: data }, { status: 201 });
 }
