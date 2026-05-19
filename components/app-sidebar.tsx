@@ -14,6 +14,7 @@ import {
   LogOut,
   FileDown,
   Menu,
+  MessageCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { href: '/', label: 'Главная', icon: LayoutDashboard },
   { href: '/upload', label: 'Загрузить', icon: Upload },
   { href: '/review', label: 'Тренировка', icon: GraduationCap },
+  { href: '/practice', label: 'Чат', icon: MessageCircle },
   { href: '/cards', label: 'Карты', icon: Layers },
   { href: '/grammar', label: 'Грамматика', icon: BookOpen },
   { href: '/decks', label: 'Колоды', icon: FolderOpen },
