@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, Fragment } from 'react';
+import React, { useEffect, useState, useCallback, Fragment, useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Loader2, Pencil, Trash2, ChevronLeft, ChevronRight, X, Check, ExternalLink } from 'lucide-react';
@@ -63,10 +63,25 @@ export default function CardsPage() {
   const [tag, setTag] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const searchRef = useRef<HTMLInputElement>(null);
+
   // Inline edit state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<EditDraft>({ front: '', back: '', tags: '' });
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // Клавиша `/` фокусирует поиск
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== '/') return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+      e.preventDefault();
+      searchRef.current?.focus();
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   // Debounce search
   useEffect(() => {
@@ -190,6 +205,26 @@ export default function CardsPage() {
 
   const totalPages = Math.ceil(total / LIMIT);
 
+  function highlight(text: string, query: string): React.ReactNode {
+    if (!query) return text;
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const splitRegex = new RegExp(`(${escaped})`, 'gi');
+    const matchRegex = new RegExp(`^${escaped}$`, 'i');
+    const parts = text.split(splitRegex);
+    return parts.map((part, i) =>
+      matchRegex.test(part) ? (
+        <mark
+          key={i}
+          className="bg-yellow-200/80 dark:bg-yellow-800/60 rounded-sm px-0.5"
+        >
+          {part}
+        </mark>
+      ) : (
+        part
+      ),
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6">
       <header>
@@ -199,12 +234,28 @@ export default function CardsPage() {
 
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Input
-          placeholder="Поиск по слову или переводу..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="sm:max-w-xs"
-        />
+        <div className="relative sm:max-w-xs">
+          <Input
+            ref={searchRef}
+            placeholder="Поиск по слову или переводу..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className={cn('pr-8', search && 'pr-8')}
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                searchRef.current?.focus();
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Очистить поиск"
+            >
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
         <div className="flex flex-wrap gap-1.5">
           {Object.entries(KIND_LABELS).map(([k, label]) => (
             <Button
@@ -286,9 +337,11 @@ export default function CardsPage() {
                         {KIND_LABELS[card.kind] ?? card.kind}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 font-medium max-w-[180px] truncate">{card.front}</td>
+                    <td className="px-3 py-2.5 font-medium max-w-[180px] truncate">
+                      {debouncedSearch ? highlight(card.front, debouncedSearch) : card.front}
+                    </td>
                     <td className="px-3 py-2.5 text-muted-foreground hidden sm:table-cell max-w-[180px] truncate">
-                      {card.back}
+                      {debouncedSearch ? highlight(card.back, debouncedSearch) : card.back}
                     </td>
                     <td className="px-3 py-2.5 hidden md:table-cell">
                       <div className="flex flex-wrap gap-1">
