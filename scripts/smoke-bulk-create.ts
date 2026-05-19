@@ -4,8 +4,8 @@
  * шлёт на /api/cards/bulk-create.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
-import { join, tmpdir } from 'node:path';
-import * as os from 'node:os';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 async function login(): Promise<string> {
   const res = await fetch('http://localhost:3000/api/auth/login', {
