@@ -13,7 +13,7 @@ export async function GET() {
     ).toISOString();
     const days112Ago = new Date(Date.now() - 112 * 24 * 60 * 60 * 1000).toISOString();
 
-    const [dueRes, totalRes, logsRes, logs112Res, cardsStateRes] = await Promise.all([
+    const [dueRes, totalRes, logsRes, logs112Res, cardsStateRes, ratings30Res, forecastCardsRes] = await Promise.all([
       // Карт к повторению прямо сейчас
       db
         .from('cards')
@@ -38,6 +38,19 @@ export async function GET() {
 
       // fsrs_state и kind для всех карт
       db.from('cards').select('fsrs_state, kind'),
+
+      // Рейтинги за 30 дней для retention rate
+      db
+        .from('review_logs')
+        .select('rating')
+        .gte('reviewed_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
+
+      // Карты по due_at для прогноза на 7 дней
+      db
+        .from('cards')
+        .select('due_at')
+        .gt('due_at', now.toISOString())
+        .lte('due_at', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()),
     ]);
 
     // Streak
@@ -80,6 +93,28 @@ export async function GET() {
       if (k in kindMap) kindMap[k]++;
     }
 
+    // retention_30d
+    const ratings30 = ratings30Res.data ?? [];
+    const total_reviews_30d = ratings30.length;
+    let retention_30d: number | null = null;
+    if (total_reviews_30d > 0) {
+      const good = ratings30.filter((r) => (r.rating as number) >= 3).length;
+      retention_30d = Math.round((good / total_reviews_30d) * 100);
+    }
+
+    // forecast: следующие 7 дней (завтра + 6)
+    const forecastCountByDate: Record<string, number> = {};
+    for (const card of forecastCardsRes.data ?? []) {
+      const d = (card.due_at as string).slice(0, 10);
+      forecastCountByDate[d] = (forecastCountByDate[d] ?? 0) + 1;
+    }
+    const forecast: { date: string; count: number }[] = [];
+    for (let i = 1; i <= 7; i++) {
+      const d = new Date(Date.now() + i * 24 * 60 * 60 * 1000);
+      const dateStr = d.toISOString().slice(0, 10);
+      forecast.push({ date: dateStr, count: forecastCountByDate[dateStr] ?? 0 });
+    }
+
     return NextResponse.json({
       due_today: dueRes.count ?? 0,
       total_cards: totalRes.count ?? 0,
@@ -88,6 +123,9 @@ export async function GET() {
       reviews_by_day,
       cards_by_state: stateMap,
       cards_by_kind: kindMap,
+      retention_30d,
+      total_reviews_30d,
+      forecast,
     });
   } catch (e) {
     console.error('[stats]', e);

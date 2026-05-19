@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Brain, Flame, BookOpen, CheckCircle2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Brain, Flame, BookOpen, CheckCircle2, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
 type DayEntry = { date: string; count: number };
+
+type ForecastEntry = { date: string; count: number };
 
 type StatsData = {
   due_today: number;
@@ -15,6 +17,9 @@ type StatsData = {
   reviews_by_day: DayEntry[];
   cards_by_state: { new: number; learning: number; review: number; relearning: number };
   cards_by_kind: { vocab: number; phrase: number; grammar_rule: number; sentence: number };
+  retention_30d: number | null;
+  total_reviews_30d: number;
+  forecast: ForecastEntry[];
 };
 
 // 5 уровней интенсивности
@@ -146,6 +151,53 @@ function Heatmap({ data }: { data: DayEntry[] }) {
   );
 }
 
+const RU_WEEKDAYS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+
+function BarChart({
+  data,
+  color = 'bg-emerald-500',
+  hoverColor = 'hover:bg-emerald-400',
+  showWeekday = false,
+}: {
+  data: DayEntry[] | ForecastEntry[];
+  color?: string;
+  hoverColor?: string;
+  showWeekday?: boolean;
+}) {
+  const max = Math.max(...data.map((d) => d.count), 1);
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-end gap-0.5 h-20">
+        {data.map((d, i) => (
+          <div
+            key={d.date}
+            title={`${d.date}: ${d.count}`}
+            className={`flex-1 rounded-t-[2px] transition-all ${color} ${hoverColor} min-h-0`}
+            style={{ height: `${d.count > 0 ? Math.max((d.count / max) * 100, 4) : 0}%` }}
+          />
+        ))}
+      </div>
+      <div className="flex text-[10px] text-muted-foreground">
+        {data.map((d, i) => {
+          if (showWeekday) {
+            const dow = new Date(d.date + 'T00:00:00Z').getUTCDay();
+            return (
+              <div key={d.date} className="flex-1 text-center">
+                {RU_WEEKDAYS[dow]}
+              </div>
+            );
+          }
+          return (
+            <div key={d.date} className="flex-1 text-center">
+              {i % 7 === 0 ? d.date.slice(5) : ''}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function StateBar({
   label,
   count,
@@ -181,7 +233,7 @@ export default function StatsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const summaryCards = [
+  const summaryCards: { title: string; value: number | string; icon: React.ElementType; desc: string }[] = [
     {
       title: 'К повторению',
       value: data?.due_today ?? 0,
@@ -205,6 +257,12 @@ export default function StatsPage() {
       value: data?.streak ?? 0,
       icon: Flame,
       desc: data?.streak === 1 ? 'день' : (data?.streak ?? 0) < 5 ? 'дня' : 'дней',
+    },
+    {
+      title: 'Retention',
+      value: data?.retention_30d != null ? `${data.retention_30d}%` : '—',
+      icon: TrendingUp,
+      desc: 'за 30 дней',
     },
   ];
 
@@ -233,13 +291,13 @@ export default function StatsPage() {
 
       {/* Секция 1: Сводка */}
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-xl" />
           ))}
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {summaryCards.map(({ title, value, icon: Icon, desc }) => (
             <Card key={title}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -307,6 +365,63 @@ export default function StatsPage() {
           </Card>
         </div>
       )}
+
+      {/* Секция 4: Ревью за 30 дней */}
+      {loading ? (
+        <Skeleton className="h-36 rounded-xl" />
+      ) : data?.reviews_by_day ? (
+        (() => {
+          const last30 = data.reviews_by_day.slice(-30);
+          const total30 = last30.reduce((s, d) => s + d.count, 0);
+          const activeDays30 = last30.filter((d) => d.count > 0).length;
+          const avg30 = Math.round(total30 / (activeDays30 || 1));
+          return (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-base">Ревью за 30 дней</CardTitle>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  ~{avg30}/день · {activeDays30} акт. дн.
+                </span>
+              </CardHeader>
+              <CardContent>
+                <BarChart
+                  data={last30}
+                  color="bg-emerald-500"
+                  hoverColor="hover:bg-emerald-400"
+                  showWeekday={false}
+                />
+              </CardContent>
+            </Card>
+          );
+        })()
+      ) : null}
+
+      {/* Секция 5: Прогноз на 7 дней */}
+      {loading ? (
+        <Skeleton className="h-36 rounded-xl" />
+      ) : data?.forecast ? (
+        (() => {
+          const forecastTotal = data.forecast.reduce((s, d) => s + d.count, 0);
+          return (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-base">Прогноз на 7 дней</CardTitle>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {forecastTotal} карт суммарно
+                </span>
+              </CardHeader>
+              <CardContent>
+                <BarChart
+                  data={data.forecast}
+                  color="bg-blue-500"
+                  hoverColor="hover:bg-blue-400"
+                  showWeekday={true}
+                />
+              </CardContent>
+            </Card>
+          );
+        })()
+      ) : null}
     </div>
   );
 }
