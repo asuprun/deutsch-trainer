@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { BookOpen, Dumbbell } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -10,6 +12,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { GrammarExerciseSession } from '@/components/grammar-exercise-session';
+import { cn } from '@/lib/utils';
 
 type GrammarNote = {
   id: string;
@@ -21,17 +25,17 @@ type GrammarNote = {
   created_at: string;
 };
 
+type Tab = 'rules' | 'exercises';
+
 /** Простой markdown-рендер: параграфы по \n\n, **bold** */
 function renderMarkdown(text: string): React.ReactNode[] {
   const paragraphs = text.split(/\n\n+/);
   return paragraphs.map((para, i) => {
-    // Replace **text** with <strong>
     const parts = para.split(/(\*\*[^*]+\*\*)/g);
     const content = parts.map((part, j) => {
       if (part.startsWith('**') && part.endsWith('**')) {
         return <strong key={j}>{part.slice(2, -2)}</strong>;
       }
-      // Preserve single line breaks
       const lines = part.split('\n');
       return (
         <span key={j}>
@@ -52,6 +56,8 @@ export default function GrammarPage() {
   const [notes, setNotes] = useState<GrammarNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [tab, setTab] = useState<Tab>('rules');
+  const [activeNote, setActiveNote] = useState<{ id: string; title: string } | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -84,67 +90,169 @@ export default function GrammarPage() {
     <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-3xl">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Грамматика</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Грамматические правила и заметки</p>
+        <p className="mt-1 text-sm text-muted-foreground">Правила и интерактивные упражнения</p>
       </header>
 
-      <Input
-        placeholder="Поиск по заголовку или тексту..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="max-w-sm"
-      />
-
-      {loading ? (
-        <div className="flex flex-col gap-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full rounded-md" />
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="py-20 text-center">
-          <p className="text-lg font-medium">
-            {notes.length === 0 ? 'Грамматических заметок пока нет.' : 'Ничего не найдено.'}
-          </p>
-          {notes.length === 0 && (
-            <p className="mt-2 text-sm text-muted-foreground">
-              Загрузи скрин страницы учебника с грамматикой.
-            </p>
+      {/* ── Tab switcher ── */}
+      <div className="flex rounded-lg border overflow-hidden w-fit">
+        <button
+          onClick={() => { setTab('rules'); setActiveNote(null); }}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 text-sm transition-colors',
+            tab === 'rules'
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-muted',
           )}
-        </div>
-      ) : (
-        <Accordion type="multiple" className="rounded-lg border divide-y">
-          {filtered.map((note) => (
-            <AccordionItem key={note.id} value={note.id} className="border-0 px-4">
-              <AccordionTrigger className="text-base font-medium py-3.5">
-                {note.title}
-                {note.tags.length > 0 && (
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    {note.tags.join(', ')}
-                  </span>
-                )}
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="text-sm text-foreground/90 leading-relaxed">
-                  {renderMarkdown(note.explanation)}
-                </div>
+        >
+          <BookOpen className="size-3.5" />
+          Правила
+        </button>
+        <button
+          onClick={() => { setTab('exercises'); setActiveNote(null); }}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 text-sm transition-colors border-l',
+            tab === 'exercises'
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-muted',
+          )}
+        >
+          <Dumbbell className="size-3.5" />
+          Упражнения
+        </button>
+      </div>
 
-                {note.examples && note.examples.length > 0 && (
-                  <div className="mt-4 flex flex-col gap-1.5">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Примеры
-                    </p>
-                    {note.examples.map((ex, i) => (
-                      <div key={i} className="text-sm">
-                        <span className="font-medium">{ex.de}</span>
-                        <span className="text-muted-foreground"> · {ex.ru}</span>
+      {/* ══════════════════════════ TAB: ПРАВИЛА ══════════════════════════════ */}
+      {tab === 'rules' && (
+        <>
+          <Input
+            placeholder="Поиск по заголовку или тексту..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="max-w-sm"
+          />
+
+          {loading ? (
+            <div className="flex flex-col gap-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full rounded-md" />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-20 text-center">
+              <p className="text-lg font-medium">
+                {notes.length === 0 ? 'Грамматических заметок пока нет.' : 'Ничего не найдено.'}
+              </p>
+              {notes.length === 0 && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Загрузи скрин страницы учебника с грамматикой.
+                </p>
+              )}
+            </div>
+          ) : (
+            <Accordion type="multiple" className="rounded-lg border divide-y">
+              {filtered.map((note) => (
+                <AccordionItem key={note.id} value={note.id} className="border-0 px-4">
+                  <AccordionTrigger className="text-base font-medium py-3.5">
+                    {note.title}
+                    {note.tags.length > 0 && (
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        {note.tags.join(', ')}
+                      </span>
+                    )}
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="text-sm text-foreground/90 leading-relaxed">
+                      {renderMarkdown(note.explanation)}
+                    </div>
+
+                    {note.examples && note.examples.length > 0 && (
+                      <div className="mt-4 flex flex-col gap-1.5">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          Примеры
+                        </p>
+                        {note.examples.map((ex, i) => (
+                          <div key={i} className="text-sm">
+                            <span className="font-medium">{ex.de}</span>
+                            <span className="text-muted-foreground"> · {ex.ru}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
+
+                    {/* Quick-launch exercises from within the rule */}
+                    <div className="mt-4 pt-3 border-t">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setActiveNote({ id: note.id, title: note.title });
+                          setTab('exercises');
+                        }}
+                      >
+                        <Dumbbell className="size-3.5 mr-1.5" />
+                        Потренироваться
+                      </Button>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          )}
+        </>
+      )}
+
+      {/* ════════════════════════ TAB: УПРАЖНЕНИЯ ════════════════════════════ */}
+      {tab === 'exercises' && (
+        <>
+          {/* Exercise session */}
+          {activeNote ? (
+            <GrammarExerciseSession
+              noteId={activeNote.id}
+              noteTitle={activeNote.title}
+              onBack={() => setActiveNote(null)}
+            />
+          ) : (
+            /* Topic picker */
+            <div className="flex flex-col gap-3">
+              {loading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                ))
+              ) : notes.length === 0 ? (
+                <div className="py-20 text-center">
+                  <p className="text-lg font-medium">Нет грамматических тем</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Загрузи скрин учебника, чтобы создать первые правила.
+                  </p>
+                </div>
+              ) : (
+                notes.map((note) => (
+                  <div
+                    key={note.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border px-4 py-3 hover:bg-muted/40 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{note.title}</p>
+                      {note.tags.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {note.tags.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => setActiveNote({ id: note.id, title: note.title })}
+                    >
+                      <Dumbbell className="size-3.5 mr-1.5" />
+                      Тренировать
+                    </Button>
                   </div>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+                ))
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
