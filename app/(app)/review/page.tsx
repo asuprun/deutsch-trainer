@@ -249,6 +249,7 @@ export default function ReviewPage() {
           <TypingInput
             key={current.id}
             correctAnswer={current.back}
+            hint="Введи перевод на русский"
             intervals={current.intervals}
             onRate={handleRate}
             disabled={submitting}
