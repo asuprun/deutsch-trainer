@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import {
   LayoutDashboard,
   Upload,
@@ -52,6 +53,7 @@ const BOTTOM_NAV_HREFS = ['/', '/review', '/upload', '/cards'];
 export function AppSidebar() {
   const pathname = usePathname();
   const { t } = useI18n();
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const NAV_ITEMS = NAV_ITEM_DEFS.map((item) => ({ ...item, label: t(item.key) }));
   const BOTTOM_NAV_ITEMS = NAV_ITEM_DEFS.filter((item) =>
@@ -131,7 +133,7 @@ export function AppSidebar() {
         })}
 
         {/* Кнопка «Меню» открывает Sheet с остальными пунктами */}
-        <Sheet>
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetTrigger asChild>
             <button
               className="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-xs text-muted-foreground transition-colors"
@@ -153,6 +155,7 @@ export function AppSidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={() => setSheetOpen(false)}
                     className={cn(
                       'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors',
                       active
@@ -167,7 +170,7 @@ export function AppSidebar() {
               })}
               <div className="border-t mt-2 pt-2">
                 <button
-                  onClick={handleLogout}
+                  onClick={() => { setSheetOpen(false); handleLogout(); }}
                   className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors hover:bg-accent/60 text-destructive"
                 >
                   <LogOut className="size-4" />
