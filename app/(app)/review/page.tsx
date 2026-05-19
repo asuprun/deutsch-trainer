@@ -11,6 +11,7 @@ import { ReviewCard, type ReviewCardData } from '@/components/review-card';
 import { RatingButtons, type RatingIntervals } from '@/components/rating-buttons';
 import { TypingInput } from '@/components/typing-input';
 import type { Grade } from 'ts-fsrs';
+import { useI18n } from '@/lib/i18n/context';
 
 type QueueCard = ReviewCardData & {
   intervals: RatingIntervals | null;
@@ -26,6 +27,7 @@ type Mode = 'cards' | 'typing';
 
 export default function ReviewPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [status, setStatus] = useState<Status>('loading');
   const [queue, setQueue] = useState<QueueCard[]>([]);
   const [idx, setIdx] = useState(0);
@@ -148,7 +150,7 @@ export default function ReviewPage() {
   if (status === 'empty') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-6 text-center">
-        <h1 className="text-3xl font-semibold">Карт к повторению пока нет</h1>
+        <h1 className="text-3xl font-semibold">{t('review_empty')}</h1>
         <p className="text-muted-foreground max-w-md">
           Загрузи скрин страницы учебника, чтобы создать первые карты, или подожди, пока подойдёт время
           повторения.
@@ -158,7 +160,7 @@ export default function ReviewPage() {
             <Link href="/upload">Загрузить скрин</Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/">На главную</Link>
+            <Link href="/">{t('btn_home')}</Link>
           </Button>
         </div>
       </div>
@@ -168,17 +170,17 @@ export default function ReviewPage() {
   if (status === 'done') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-6 text-center">
-        <h1 className="text-3xl font-semibold">Сессия завершена</h1>
-        <p className="text-muted-foreground">Повторено карт: {done}</p>
+        <h1 className="text-3xl font-semibold">{t('review_session_done')}</h1>
+        <p className="text-muted-foreground">{t('review_reviewed_count')}: {done}</p>
         <div className="flex gap-3 mt-2">
           <Button onClick={loadQueue}>
             <RotateCw className="size-4 mr-2" />
-            Ещё одна сессия
+            {t('review_another_session')}
           </Button>
           <Button variant="outline" asChild>
             <Link href="/">
               <Home className="size-4 mr-2" />
-              На главную
+              {t('btn_home')}
             </Link>
           </Button>
         </div>
@@ -209,7 +211,7 @@ export default function ReviewPage() {
         <div className="flex rounded-md border overflow-hidden">
           <button
             onClick={() => { setMode('cards'); setFlipped(false); }}
-            title="Режим карточек"
+            title={t('review_mode_cards')}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs transition-colors ${
               mode === 'cards'
                 ? 'bg-primary text-primary-foreground'
@@ -217,11 +219,11 @@ export default function ReviewPage() {
             }`}
           >
             <FlipHorizontal2 className="size-3.5" />
-            <span className="hidden sm:inline">Карточки</span>
+            <span className="hidden sm:inline">{t('review_mode_cards')}</span>
           </button>
           <button
             onClick={() => { setMode('typing'); setFlipped(false); }}
-            title="Режим ввода"
+            title={t('review_mode_typing')}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs transition-colors border-l ${
               mode === 'typing'
                 ? 'bg-primary text-primary-foreground'
@@ -229,7 +231,7 @@ export default function ReviewPage() {
             }`}
           >
             <Keyboard className="size-3.5" />
-            <span className="hidden sm:inline">Ввод</span>
+            <span className="hidden sm:inline">{t('review_mode_typing')}</span>
           </button>
         </div>
       </header>
@@ -240,7 +242,7 @@ export default function ReviewPage() {
 
         {mode === 'cards' && !flipped && (
           <Button size="lg" onClick={() => setFlipped(true)}>
-            Показать ответ
+            {t('review_show_answer')}
             <kbd className="ml-2 rounded bg-black/20 px-1.5 py-0.5 text-xs font-mono">Space</kbd>
           </Button>
         )}

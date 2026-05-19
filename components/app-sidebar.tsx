@@ -25,35 +25,41 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/context';
+import type { TranslationKey } from '@/lib/i18n/translations';
 
-const NAV_ITEMS = [
-  { href: '/', label: 'Главная', icon: LayoutDashboard },
-  { href: '/upload', label: 'Загрузить', icon: Upload },
-  { href: '/review', label: 'Тренировка', icon: GraduationCap },
-  { href: '/practice', label: 'Чат', icon: MessageCircle },
-  { href: '/cards', label: 'Карты', icon: Layers },
-  { href: '/grammar', label: 'Грамматика', icon: BookOpen },
-  { href: '/decks', label: 'Колоды', icon: FolderOpen },
-  { href: '/import', label: 'Импорт', icon: FileDown },
-  { href: '/stats', label: 'Статистика', icon: BarChart3 },
-  { href: '/settings', label: 'Настройки', icon: Settings },
+type NavItemDef = {
+  href: string;
+  key: TranslationKey;
+  icon: React.ComponentType<{ className?: string }>;
+};
+
+const NAV_ITEM_DEFS: NavItemDef[] = [
+  { href: '/', key: 'nav_home', icon: LayoutDashboard },
+  { href: '/upload', key: 'nav_upload', icon: Upload },
+  { href: '/review', key: 'nav_review', icon: GraduationCap },
+  { href: '/practice', key: 'nav_practice', icon: MessageCircle },
+  { href: '/cards', key: 'nav_cards', icon: Layers },
+  { href: '/grammar', key: 'nav_grammar', icon: BookOpen },
+  { href: '/decks', key: 'nav_decks', icon: FolderOpen },
+  { href: '/import', key: 'nav_import', icon: FileDown },
+  { href: '/stats', key: 'nav_stats', icon: BarChart3 },
+  { href: '/settings', key: 'nav_settings', icon: Settings },
 ];
 
-// Первые 4 пункта показываем в bottom bar напрямую, 5-й — кнопка «Меню»
-const BOTTOM_NAV_ITEMS = [
-  { href: '/', label: 'Главная', icon: LayoutDashboard },
-  { href: '/review', label: 'Тренировка', icon: GraduationCap },
-  { href: '/upload', label: 'Загрузить', icon: Upload },
-  { href: '/cards', label: 'Карты', icon: Layers },
-];
-
-// Остальные пункты — в Sheet
-const SHEET_NAV_ITEMS = NAV_ITEMS.filter(
-  (item) => !BOTTOM_NAV_ITEMS.some((b) => b.href === item.href),
-);
+const BOTTOM_NAV_HREFS = ['/', '/review', '/upload', '/cards'];
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { t } = useI18n();
+
+  const NAV_ITEMS = NAV_ITEM_DEFS.map((item) => ({ ...item, label: t(item.key) }));
+  const BOTTOM_NAV_ITEMS = NAV_ITEM_DEFS.filter((item) =>
+    BOTTOM_NAV_HREFS.includes(item.href),
+  ).map((item) => ({ ...item, label: t(item.key) }));
+  const SHEET_NAV_ITEMS = NAV_ITEMS.filter(
+    (item) => !BOTTOM_NAV_HREFS.includes(item.href),
+  );
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -99,7 +105,7 @@ export function AppSidebar() {
         <div className="border-t p-2">
           <Button variant="ghost" className="w-full justify-start gap-3" onClick={handleLogout}>
             <LogOut className="size-4" />
-            Выйти
+            {t('nav_logout')}
           </Button>
         </div>
       </aside>
@@ -129,10 +135,10 @@ export function AppSidebar() {
           <SheetTrigger asChild>
             <button
               className="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-xs text-muted-foreground transition-colors"
-              aria-label="Меню"
+              aria-label={t('nav_menu')}
             >
               <Menu className="size-5" />
-              <span>Меню</span>
+              <span>{t('nav_menu')}</span>
             </button>
           </SheetTrigger>
           <SheetContent side="bottom" className="pb-safe">
@@ -165,7 +171,7 @@ export function AppSidebar() {
                   className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors hover:bg-accent/60 text-destructive"
                 >
                   <LogOut className="size-4" />
-                  Выйти
+                  {t('nav_logout')}
                 </button>
               </div>
             </nav>

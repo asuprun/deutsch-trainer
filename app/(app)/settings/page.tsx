@@ -8,6 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { TtsVoicePicker } from '@/components/tts-voice-picker';
+import { LocaleToggle } from '@/components/locale-toggle';
+import { useI18n } from '@/lib/i18n/context';
 
 type SettingsData = {
   level: string;
@@ -46,6 +49,7 @@ function settingsToForm(s: SettingsData): FormState {
 }
 
 export default function SettingsPage() {
+  const { t } = useI18n();
   const [form, setForm] = useState<FormState>(DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -101,7 +105,7 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-xl">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Настройки</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('settings_title')}</h1>
         <p className="mt-1 text-sm text-muted-foreground">Параметры обучения и интерфейса</p>
       </header>
 
@@ -113,14 +117,24 @@ export default function SettingsPage() {
         </div>
       ) : (
         <>
+          {/* Язык интерфейса */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Обучение</CardTitle>
+              <CardTitle className="text-base">{t('settings_language')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <LocaleToggle />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t('settings_learning')}</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               {/* Уровень */}
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="level">Уровень языка</Label>
+                <Label htmlFor="level">{t('settings_level')}</Label>
                 <Input
                   id="level"
                   value={form.level}
@@ -132,7 +146,7 @@ export default function SettingsPage() {
 
               {/* Дневная цель */}
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="daily_goal">Дневная цель (карт)</Label>
+                <Label htmlFor="daily_goal">{t('settings_daily_goal')}</Label>
                 <Input
                   id="daily_goal"
                   type="number"
@@ -145,7 +159,7 @@ export default function SettingsPage() {
 
               {/* Удержание FSRS */}
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="request_retention">Удержание FSRS</Label>
+                <Label htmlFor="request_retention">{t('settings_retention')}</Label>
                 <Input
                   id="request_retention"
                   type="number"
@@ -164,24 +178,22 @@ export default function SettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Озвучка (TTS)</CardTitle>
+              <CardTitle className="text-base">{t('settings_tts')}</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               {/* TTS голос */}
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="tts_voice">Голос TTS</Label>
-                <Input
-                  id="tts_voice"
+                <Label>{t('settings_tts_voice')}</Label>
+                <TtsVoicePicker
                   value={form.tts_voice}
-                  onChange={handleChange('tts_voice')}
-                  placeholder="de-DE, de-AT..."
-                  maxLength={50}
+                  onChange={(name) => setForm((prev) => ({ ...prev, tts_voice: name }))}
+                  lang="de-DE"
                 />
               </div>
 
               {/* Скорость TTS */}
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="tts_rate">Скорость TTS</Label>
+                <Label htmlFor="tts_rate">{t('settings_tts_rate')}</Label>
                 <Input
                   id="tts_rate"
                   type="number"
@@ -199,7 +211,7 @@ export default function SettingsPage() {
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button onClick={handleSave} disabled={saving} className="gap-2">
               <Save className="size-4" />
-              {saving ? 'Сохранение...' : 'Сохранить'}
+              {saving ? t('btn_saving') : t('btn_save')}
             </Button>
 
             <Button variant="outline" asChild className="gap-2">

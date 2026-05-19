@@ -9,7 +9,7 @@ export type TTSStatus = {
   speaking: boolean;
 };
 
-export function useTTS(lang = 'de-DE') {
+export function useTTS(lang = 'de-DE', voiceName?: string) {
   const [voice, setVoice] = useState<SpeechSynthesisVoice | null>(null);
   const [supported, setSupported] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -23,15 +23,22 @@ export function useTTS(lang = 'de-DE') {
 
     const update = () => {
       const voices = window.speechSynthesis.getVoices();
-      const exact = voices.find((v) => v.lang === lang);
-      const partial = voices.find((v) => v.lang.startsWith(lang.split('-')[0]));
-      setVoice(exact ?? partial ?? null);
+      if (voiceName) {
+        const byName = voices.find((v) => v.name === voiceName);
+        const fallbackExact = voices.find((v) => v.lang === lang);
+        const fallbackPartial = voices.find((v) => v.lang.startsWith(lang.split('-')[0]));
+        setVoice(byName ?? fallbackExact ?? fallbackPartial ?? null);
+      } else {
+        const exact = voices.find((v) => v.lang === lang);
+        const partial = voices.find((v) => v.lang.startsWith(lang.split('-')[0]));
+        setVoice(exact ?? partial ?? null);
+      }
     };
 
     update();
     window.speechSynthesis.addEventListener('voiceschanged', update);
     return () => window.speechSynthesis.removeEventListener('voiceschanged', update);
-  }, [lang]);
+  }, [lang, voiceName]);
 
   const speak = useCallback(
     (text: string, rate = 1.0) => {

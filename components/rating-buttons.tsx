@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatInterval } from '@/lib/format/intervals';
 import type { Grade } from 'ts-fsrs';
+import { useI18n } from '@/lib/i18n/context';
+import type { TranslationKey } from '@/lib/i18n/translations';
 
 export type RatingIntervals = {
   [K in 1 | 2 | 3 | 4]?: { due: string };
@@ -17,22 +19,25 @@ type Props = {
   suggestedGrade?: Grade;
 };
 
-const RATINGS: Array<{
+const RATING_DEFS: Array<{
   grade: Grade;
-  label: string;
+  key: TranslationKey;
   shortcut: string;
   className: string;
 }> = [
-  { grade: 1, label: 'Снова',  shortcut: '1', className: 'bg-rose-600 hover:bg-rose-700 text-white' },
-  { grade: 2, label: 'Сложно', shortcut: '2', className: 'bg-amber-600 hover:bg-amber-700 text-white' },
-  { grade: 3, label: 'Хорошо', shortcut: '3', className: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
-  { grade: 4, label: 'Легко',  shortcut: '4', className: 'bg-sky-600 hover:bg-sky-700 text-white' },
+  { grade: 1, key: 'review_again', shortcut: '1', className: 'bg-rose-600 hover:bg-rose-700 text-white' },
+  { grade: 2, key: 'review_hard',  shortcut: '2', className: 'bg-amber-600 hover:bg-amber-700 text-white' },
+  { grade: 3, key: 'review_good',  shortcut: '3', className: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
+  { grade: 4, key: 'review_easy',  shortcut: '4', className: 'bg-sky-600 hover:bg-sky-700 text-white' },
 ];
 
 export function RatingButtons({ intervals, onRate, disabled, suggestedGrade }: Props) {
+  const { t } = useI18n();
+
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      {RATINGS.map(({ grade, label, shortcut, className }) => {
+      {RATING_DEFS.map(({ grade, key, shortcut, className }) => {
+        const label = t(key);
         const interval = intervals?.[grade];
         const intervalText = interval ? formatInterval(interval.due) : '—';
         const suggested = suggestedGrade === grade;
