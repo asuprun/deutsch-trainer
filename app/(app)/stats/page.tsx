@@ -4,12 +4,6 @@ import { useEffect, useState } from 'react';
 import { Brain, Flame, BookOpen, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 
 type DayEntry = { date: string; count: number };
 
@@ -80,9 +74,8 @@ function Heatmap({ data }: { data: DayEntry[] }) {
         </span>
       </CardHeader>
       <CardContent>
-        <TooltipProvider delayDuration={100}>
-          <div className="overflow-x-auto pb-1">
-            <div className="flex gap-2 min-w-fit">
+        <div className="overflow-x-auto pb-1">
+          <div className="flex gap-2 min-w-fit">
               {/* Подписи дней недели */}
               <div className="flex flex-col shrink-0" style={{ gap: '3px', paddingTop: '18px' }}>
                 {DAY_LABELS.map((label, i) => (
@@ -125,30 +118,20 @@ function Heatmap({ data }: { data: DayEntry[] }) {
                     if (cell.empty) {
                       return <div key={`e-${i}`} style={{ width: 13, height: 13 }} />;
                     }
+                    const tipText = `${formatDate(cell.date)}: ${cell.count === 0 ? 'нет занятий' : `${cell.count} ревью`}`;
                     return (
-                      <Tooltip key={cell.date}>
-                        <TooltipTrigger asChild>
-                          <div
-                            className={`rounded-sm cursor-default transition-opacity hover:opacity-80 ${heatColor(cell.count)}`}
-                            style={{ width: 13, height: 13 }}
-                          />
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="text-xs">
-                          <p className="font-medium">{formatDate(cell.date)}</p>
-                          <p className="text-muted-foreground">
-                            {cell.count === 0
-                              ? 'Нет занятий'
-                              : `${cell.count} ${cell.count === 1 ? 'ревью' : cell.count < 5 ? 'ревью' : 'ревью'}`}
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
+                      <div
+                        key={cell.date}
+                        title={tipText}
+                        className={`rounded-sm cursor-default transition-opacity hover:opacity-70 ${heatColor(cell.count)}`}
+                        style={{ width: 13, height: 13 }}
+                      />
                     );
                   })}
                 </div>
               </div>
             </div>
           </div>
-        </TooltipProvider>
 
         {/* Легенда */}
         <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
