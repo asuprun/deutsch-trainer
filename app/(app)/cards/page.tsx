@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Fragment } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Loader2, Pencil, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Loader2, Pencil, Trash2, ChevronLeft, ChevronRight, X, Check, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 import { formatInterval } from '@/lib/format/intervals';
 
 type CardKind = 'vocab' | 'phrase' | 'grammar_rule' | 'sentence';
@@ -31,6 +32,8 @@ type CardsResponse = {
   page: number;
   limit: number;
 };
+
+type EditDraft = { front: string; back: string; tags: string };
 
 const KIND_LABELS: Record<string, string> = {
   all: 'Все',
@@ -59,6 +62,11 @@ export default function CardsPage() {
   const [kind, setKind] = useState<string>('all');
   const [tag, setTag] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Inline edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<EditDraft>({ front: '', back: '', tags: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // Debounce search
   useEffect(() => {
@@ -101,6 +109,67 @@ export default function CardsPage() {
   useEffect(() => {
     setPage(0);
   }, [kind, tag]);
+
+  // ── Inline edit helpers ──────────────────────────────────────────────────────
+
+  function startEdit(card: Card) {
+    setEditingId(card.id);
+    setEditDraft({
+      front: card.front,
+      back: card.back,
+      tags: (card.tags ?? []).join(', '),
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function saveEdit(card: Card) {
+    const frontChanged = editDraft.front.trim() !== card.front;
+    const backChanged = editDraft.back.trim() !== card.back;
+
+    if (
+      (frontChanged || backChanged) &&
+      !window.confirm('Изменение слова сбросит прогресс FSRS. Продолжить?')
+    ) {
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      const tags = editDraft.tags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      const res = await fetch(`/api/cards/${card.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          front: editDraft.front.trim(),
+          back: editDraft.back.trim(),
+          tags,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, ...data.card } : c)));
+      toast.success('Карта сохранена');
+      setEditingId(null);
+    } catch (e) {
+      toast.error('Не удалось сохранить', {
+        description: e instanceof Error ? e.message : '',
+      });
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  // ── Delete ───────────────────────────────────────────────────────────────────
 
   async function handleDelete(id: string) {
     if (!window.confirm('Удалить карту? Это действие нельзя отменить.')) return;
@@ -202,62 +271,171 @@ export default function CardsPage() {
             </thead>
             <tbody className="divide-y">
               {cards.map((card) => (
-                <tr key={card.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-3 py-2.5">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${KIND_BADGE_CLASS[card.kind] ?? ''}`}
-                    >
-                      {KIND_LABELS[card.kind] ?? card.kind}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2.5 font-medium max-w-[180px] truncate">{card.front}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground hidden sm:table-cell max-w-[180px] truncate">
-                    {card.back}
-                  </td>
-                  <td className="px-3 py-2.5 hidden md:table-cell">
-                    <div className="flex flex-wrap gap-1">
-                      {card.tags?.map((t) => (
-                        <Badge
-                          key={t}
-                          variant="outline"
-                          className="text-xs cursor-pointer hover:bg-primary/20"
-                          onClick={() => {
-                            setTag(t);
-                            setPage(0);
-                          }}
-                        >
-                          {t}
-                        </Badge>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell tabular-nums">
-                    {card.due_at ? formatInterval(card.due_at) : '—'}
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" asChild className="size-7">
-                        <Link href={`/cards/${card.id}`} aria-label="Редактировать">
-                          <Pencil className="size-3.5" />
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(card.id)}
-                        disabled={deletingId === card.id}
-                        aria-label="Удалить"
+                <Fragment key={card.id}>
+                  {/* ── Card row ── */}
+                  <tr
+                    className={cn(
+                      'hover:bg-muted/30 transition-colors',
+                      editingId === card.id && 'bg-primary/5',
+                    )}
+                  >
+                    <td className="px-3 py-2.5">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${KIND_BADGE_CLASS[card.kind] ?? ''}`}
                       >
-                        {deletingId === card.id ? (
-                          <Loader2 className="size-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="size-3.5" />
-                        )}
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
+                        {KIND_LABELS[card.kind] ?? card.kind}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 font-medium max-w-[180px] truncate">{card.front}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground hidden sm:table-cell max-w-[180px] truncate">
+                      {card.back}
+                    </td>
+                    <td className="px-3 py-2.5 hidden md:table-cell">
+                      <div className="flex flex-wrap gap-1">
+                        {card.tags?.map((t) => (
+                          <Badge
+                            key={t}
+                            variant="outline"
+                            className="text-xs cursor-pointer hover:bg-primary/20"
+                            onClick={() => {
+                              setTag(t);
+                              setPage(0);
+                            }}
+                          >
+                            {t}
+                          </Badge>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell tabular-nums">
+                      {card.due_at ? formatInterval(card.due_at) : '—'}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center justify-end gap-1">
+                        {/* Inline edit toggle */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={cn(
+                            'size-7',
+                            editingId === card.id && 'text-primary bg-primary/10',
+                          )}
+                          onClick={() => (editingId === card.id ? cancelEdit() : startEdit(card))}
+                          aria-label={editingId === card.id ? 'Закрыть' : 'Редактировать'}
+                        >
+                          {editingId === card.id ? (
+                            <X className="size-3.5" />
+                          ) : (
+                            <Pencil className="size-3.5" />
+                          )}
+                        </Button>
+                        {/* Delete */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 text-destructive hover:text-destructive"
+                          onClick={() => handleDelete(card.id)}
+                          disabled={deletingId === card.id}
+                          aria-label="Удалить"
+                        >
+                          {deletingId === card.id ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="size-3.5" />
+                          )}
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* ── Inline edit panel ── */}
+                  {editingId === card.id && (
+                    <tr>
+                      <td colSpan={6} className="bg-muted/20 px-3 py-4 border-b border-primary/10">
+                        <div className="flex flex-col gap-3 max-w-2xl">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="grid gap-1">
+                              <label className="text-xs font-medium text-muted-foreground">
+                                Слово / фраза (немецкий)
+                              </label>
+                              <Input
+                                value={editDraft.front}
+                                onChange={(e) =>
+                                  setEditDraft((d) => ({ ...d, front: e.target.value }))
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') saveEdit(card);
+                                  if (e.key === 'Escape') cancelEdit();
+                                }}
+                                autoFocus
+                              />
+                            </div>
+                            <div className="grid gap-1">
+                              <label className="text-xs font-medium text-muted-foreground">
+                                Перевод
+                              </label>
+                              <Input
+                                value={editDraft.back}
+                                onChange={(e) =>
+                                  setEditDraft((d) => ({ ...d, back: e.target.value }))
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') saveEdit(card);
+                                  if (e.key === 'Escape') cancelEdit();
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid gap-1">
+                            <label className="text-xs font-medium text-muted-foreground">
+                              Теги (через запятую)
+                            </label>
+                            <Input
+                              value={editDraft.tags}
+                              onChange={(e) =>
+                                setEditDraft((d) => ({ ...d, tags: e.target.value }))
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveEdit(card);
+                                if (e.key === 'Escape') cancelEdit();
+                              }}
+                              placeholder="A1, существительные, дом"
+                              className="sm:max-w-xs"
+                            />
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => saveEdit(card)}
+                              disabled={savingEdit || !editDraft.front.trim() || !editDraft.back.trim()}
+                            >
+                              {savingEdit ? (
+                                <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                              ) : (
+                                <Check className="size-3.5 mr-1.5" />
+                              )}
+                              Сохранить
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={cancelEdit}>
+                              Отмена
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="ml-auto text-muted-foreground text-xs gap-1"
+                              asChild
+                            >
+                              <Link href={`/cards/${card.id}`}>
+                                Расширенное редактирование
+                                <ExternalLink className="size-3" />
+                              </Link>
+                            </Button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>
