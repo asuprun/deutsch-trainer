@@ -123,8 +123,10 @@ export async function POST(req: Request) {
       },
     });
 
-    // История без последнего сообщения пользователя
-    const history = messages.slice(0, -1).map((m) => ({
+    // История: пропускаем первое сообщение (greeting модели, добавленное без Gemini)
+    // и последнее сообщение (текущий запрос пользователя, отправляем через sendMessage)
+    // Gemini требует: history должна начинаться с role='user'
+    const history = messages.slice(1, -1).map((m) => ({
       role: m.role,
       parts: [{ text: m.content }],
     }));
