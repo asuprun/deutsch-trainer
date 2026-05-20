@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   Upload,
@@ -54,6 +54,11 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { t } = useI18n();
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  // Закрывать меню при любой смене маршрута
+  useEffect(() => {
+    setSheetOpen(false);
+  }, [pathname]);
 
   const NAV_ITEMS = NAV_ITEM_DEFS.map((item) => ({ ...item, label: t(item.key) }));
   const BOTTOM_NAV_ITEMS = NAV_ITEM_DEFS.filter((item) =>
