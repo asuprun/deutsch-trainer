@@ -5,7 +5,7 @@ import { enrichCard } from '@/app/api/cards/[id]/enrich/route';
 export const runtime = 'nodejs';
 
 const bodySchema = z.object({
-  ids: z.array(z.string().uuid()).min(1).max(30),
+  ids: z.array(z.string().uuid()).min(1).max(50),
 });
 
 function err(code: string, message: string, status: number) {

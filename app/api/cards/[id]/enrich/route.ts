@@ -93,7 +93,7 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
 4. Добавь теги: уровень CEFR (A1/A2/B1/B2) и 1-2 тематики на русском
 5. Составь 2-3 примера предложений с переводом на A2-B1 уровне`;
 
-  let enriched: {
+  type EnrichedData = {
     word_type: string;
     gender?: string | null;
     plural?: string | null;
@@ -102,11 +102,27 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
     examples: { de: string; ru: string }[];
   };
 
-  try {
-    const result = await model.generateContent(prompt);
-    enriched = JSON.parse(result.response.text());
-  } catch (e) {
-    return { error: { code: 'GEMINI_ERROR', message: e instanceof Error ? e.message : 'Ошибка генерации' } };
+  // Retry up to 3 attempts — Gemini 2.5 Flash sometimes fails on first try
+  const MAX_ATTEMPTS = 3;
+  let enriched: EnrichedData | null = null;
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const result = await model.generateContent(prompt);
+      enriched = JSON.parse(result.response.text()) as EnrichedData;
+      lastError = null;
+      break;
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      if (attempt < MAX_ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, attempt * 1000));
+      }
+    }
+  }
+
+  if (!enriched || lastError) {
+    return { error: { code: 'GEMINI_ERROR', message: lastError?.message ?? 'Ошибка генерации' } };
   }
 
   const updates: Record<string, unknown> = {
