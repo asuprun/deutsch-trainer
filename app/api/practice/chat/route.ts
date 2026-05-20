@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { SchemaType, type ResponseSchema } from '@google/generative-ai';
-import { getGemini, GEMINI_FALLBACK_MODEL } from '@/lib/gemini/client';
+import { getGemini, GEMINI_MODEL } from '@/lib/gemini/client';
 
 export const runtime = 'nodejs';
 
@@ -111,9 +111,8 @@ export async function POST(req: Request) {
   }
 
   try {
-    // gemini-2.0-flash — стабильнее для JSON-mode в чате (2.5-flash конфликтует с thinking)
     const model = getGemini().getGenerativeModel({
-      model: GEMINI_FALLBACK_MODEL,
+      model: GEMINI_MODEL,
       systemInstruction: buildSystemPrompt(topicConfig.role),
       generationConfig: {
         responseMimeType: 'application/json',
