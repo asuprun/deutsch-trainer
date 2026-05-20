@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, Fragment, useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Loader2, Pencil, Trash2, ChevronLeft, ChevronRight, X, Check, ExternalLink, Plus } from 'lucide-react';
+import { Loader2, Pencil, Trash2, ChevronLeft, ChevronRight, X, Check, ExternalLink, Plus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,10 @@ type Card = {
   kind: CardKind;
   front: string;
   back: string;
+  word_type: string | null;
+  gender: string | null;
+  plural: string | null;
+  examples: { de: string; ru: string }[] | null;
   due_at: string | null;
   reps: number;
   lapses: number;
@@ -63,6 +67,8 @@ export default function CardsPage() {
   const [kind, setKind] = useState<string>('all');
   const [tag, setTag] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [enrichingId, setEnrichingId] = useState<string | null>(null);
+  const [enrichingBatch, setEnrichingBatch] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
@@ -186,6 +192,55 @@ export default function CardsPage() {
     }
   }
 
+  // ── Enrich (single) ─────────────────────────────────────────────────────────
+
+  async function handleEnrich(card: Card) {
+    setEnrichingId(card.id);
+    try {
+      const res = await fetch(`/api/cards/${card.id}/enrich`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
+      setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, ...data.card } : c)));
+      toast.success('Карта обогащена ✨', {
+        description: `${data.card.word_type ?? ''} ${data.card.gender ?? ''} ${card.front}`.trim(),
+      });
+    } catch (e) {
+      toast.error('Ошибка обогащения', {
+        description: e instanceof Error ? e.message : '',
+      });
+    } finally {
+      setEnrichingId(null);
+    }
+  }
+
+  // ── Enrich (batch) ───────────────────────────────────────────────────────────
+
+  async function handleEnrichBatch() {
+    const unenriched = cards.filter((c) => !c.examples?.length);
+    if (!unenriched.length) {
+      toast.info('Все карты на странице уже обогащены');
+      return;
+    }
+    setEnrichingBatch(true);
+    try {
+      const res = await fetch('/api/cards/enrich-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: unenriched.map((c) => c.id) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
+      toast.success(`Обогащено ${data.succeeded} из ${data.total} карт ✨`);
+      fetchCards();
+    } catch (e) {
+      toast.error('Ошибка пакетного обогащения', {
+        description: e instanceof Error ? e.message : '',
+      });
+    } finally {
+      setEnrichingBatch(false);
+    }
+  }
+
   // ── Delete ───────────────────────────────────────────────────────────────────
 
   async function handleDelete(id: string) {
@@ -234,10 +289,29 @@ export default function CardsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Карты</h1>
           <p className="mt-1 text-sm text-muted-foreground">Все флешкарты базы данных</p>
         </div>
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
-          <Plus className="size-4 mr-1.5" />
-          Добавить
-        </Button>
+        <div className="flex items-center gap-2">
+          {cards.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleEnrichBatch}
+              disabled={enrichingBatch || loading}
+            >
+              {enrichingBatch ? (
+                <Loader2 className="size-4 mr-1.5 animate-spin" />
+              ) : (
+                <Sparkles className="size-4 mr-1.5" />
+              )}
+              {enrichingBatch
+                ? 'Обогащаю…'
+                : `Обогатить${cards.filter((c) => !c.examples?.length).length ? ` (${cards.filter((c) => !c.examples?.length).length})` : ''}`}
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4 mr-1.5" />
+            Добавить
+          </Button>
+        </div>
       </header>
 
       {/* Filters */}
@@ -373,6 +447,27 @@ export default function CardsPage() {
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex items-center justify-end gap-1">
+                        {/* AI Enrich */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={cn(
+                            'size-7',
+                            card.examples?.length
+                              ? 'text-muted-foreground/50 hover:text-amber-400'
+                              : 'text-amber-500 hover:text-amber-400',
+                          )}
+                          onClick={() => handleEnrich(card)}
+                          disabled={enrichingId === card.id || enrichingBatch}
+                          aria-label="Обогатить с помощью ИИ"
+                          title={card.examples?.length ? 'Обогатить повторно' : 'Обогатить ✨'}
+                        >
+                          {enrichingId === card.id ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <Sparkles className="size-3.5" />
+                          )}
+                        </Button>
                         {/* Inline edit toggle */}
                         <Button
                           variant="ghost"

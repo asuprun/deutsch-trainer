@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { SchemaType, type ResponseSchema } from '@google/generative-ai';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { getGemini, GEMINI_MODEL } from '@/lib/gemini/client';
 
@@ -10,45 +11,139 @@ function err(code: string, message: string, status: number) {
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-export async function POST(_req: Request, context: RouteContext) {
-  const { id } = await context.params;
+// ─── Gemini response schema ───────────────────────────────────────────────────
+
+const responseSchema: ResponseSchema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    word_type: {
+      type: SchemaType.STRING,
+      description: 'One of: noun, verb, adjective, adverb, preposition, conjunction, numeral, phrase, other',
+    },
+    gender: {
+      type: SchemaType.STRING,
+      description: 'For nouns only: der | die | das. Empty string otherwise.',
+      nullable: true,
+    },
+    plural: {
+      type: SchemaType.STRING,
+      description: 'Plural form for nouns (e.g. "die Häuser"). Empty string if not a noun or unknown.',
+      nullable: true,
+    },
+    back_corrected: {
+      type: SchemaType.STRING,
+      description: 'Corrected/improved Russian translation. Keep original if it is already accurate.',
+    },
+    tags: {
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
+      description: 'Array of tags: CEFR level (A1/A2/B1/B2), and 1-2 topic categories in Russian (еда, путешествия, работа, семья, тело, природа, etc.)',
+    },
+    examples: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          de: { type: SchemaType.STRING },
+          ru: { type: SchemaType.STRING },
+        },
+        required: ['de', 'ru'],
+      },
+      description: '2-3 example sentences with Russian translations',
+    },
+  },
+  required: ['word_type', 'back_corrected', 'tags', 'examples'],
+};
+
+// ─── Core enrichment logic ────────────────────────────────────────────────────
+
+export async function enrichCard(cardId: string): Promise<{ card: Record<string, unknown> } | { error: { code: string; message: string } }> {
   const db = getSupabaseAdmin();
 
   const { data: card, error: fetchErr } = await db
     .from('cards')
-    .select('id, front, back, word_type')
-    .eq('id', id)
+    .select('id, front, back, kind, word_type')
+    .eq('id', cardId)
     .maybeSingle();
-  if (fetchErr) return err('DB_ERROR', fetchErr.message, 500);
-  if (!card) return err('NOT_FOUND', 'Карта не найдена', 404);
 
-  const gemini = getGemini();
-  const model = gemini.getGenerativeModel({ model: GEMINI_MODEL });
+  if (fetchErr) return { error: { code: 'DB_ERROR', message: fetchErr.message } };
+  if (!card) return { error: { code: 'NOT_FOUND', message: 'Карта не найдена' } };
 
-  const prompt = `Сгенерируй 2-3 примера предложений для немецкого слова/фразы "${card.front}" (перевод: "${card.back}", тип: "${card.word_type ?? 'не указан'}").
-Верни ТОЛЬКО JSON массив в формате: [{"de": "немецкое предложение", "ru": "русский перевод"}]
-Никакого другого текста, только JSON.`;
+  const model = getGemini().getGenerativeModel({
+    model: GEMINI_MODEL,
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema,
+      temperature: 0.3,
+      maxOutputTokens: 1024,
+    },
+  });
 
-  let examples: { de: string; ru: string }[] = [];
+  const prompt = `Обогати немецкую карточку для обучения:
+
+Слово/фраза (немецкий): "${card.front}"
+Текущий перевод (русский): "${card.back}"
+Тип карточки: ${card.kind}
+Текущий тип слова: ${card.word_type ?? 'не определён'}
+
+Задачи:
+1. Определи точный word_type: noun/verb/adjective/adverb/preposition/conjunction/numeral/phrase/other
+2. Если существительное — укажи gender (der/die/das) и plural (форму мн.ч.)
+3. Проверь перевод и исправь в back_corrected если нужно (иначе верни как есть)
+4. Добавь теги: уровень CEFR (A1/A2/B1/B2) и 1-2 тематики на русском
+5. Составь 2-3 примера предложений с переводом на A2-B1 уровне`;
+
+  let enriched: {
+    word_type: string;
+    gender?: string | null;
+    plural?: string | null;
+    back_corrected: string;
+    tags: string[];
+    examples: { de: string; ru: string }[];
+  };
+
   try {
     const result = await model.generateContent(prompt);
-    const text = result.response.text().trim();
-    // Extract JSON array from response
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      examples = JSON.parse(jsonMatch[0]);
-    }
+    enriched = JSON.parse(result.response.text());
   } catch (e) {
-    return err('GEMINI_ERROR', e instanceof Error ? e.message : 'Ошибка генерации', 500);
+    return { error: { code: 'GEMINI_ERROR', message: e instanceof Error ? e.message : 'Ошибка генерации' } };
+  }
+
+  const updates: Record<string, unknown> = {
+    word_type: enriched.word_type || card.word_type,
+    back: enriched.back_corrected || card.back,
+    tags: enriched.tags ?? [],
+    examples: enriched.examples ?? [],
+  };
+
+  // Only update gender/plural for nouns
+  if (enriched.word_type === 'noun') {
+    updates.gender = enriched.gender || null;
+    updates.plural = enriched.plural || null;
   }
 
   const { data: updated, error: updateErr } = await db
     .from('cards')
-    .update({ examples })
-    .eq('id', id)
+    .update(updates)
+    .eq('id', cardId)
     .select('*')
     .maybeSingle();
-  if (updateErr) return err('DB_ERROR', updateErr.message, 500);
 
-  return NextResponse.json({ card: updated });
+  if (updateErr) return { error: { code: 'DB_ERROR', message: updateErr.message } };
+  return { card: updated as Record<string, unknown> };
+}
+
+// ─── Route handler ────────────────────────────────────────────────────────────
+
+export async function POST(_req: Request, context: RouteContext) {
+  const { id } = await context.params;
+  const result = await enrichCard(id);
+
+  if ('error' in result) {
+    const status = result.error.code === 'NOT_FOUND' ? 404 :
+                   result.error.code === 'GEMINI_ERROR' ? 500 : 500;
+    return err(result.error.code, result.error.message, status);
+  }
+
+  return NextResponse.json(result);
 }

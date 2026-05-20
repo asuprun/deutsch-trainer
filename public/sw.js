@@ -1,4 +1,4 @@
-const CACHE = 'dt-v1';
+const CACHE = 'dt-v2';
 const PRECACHE = ['/', '/review', '/cards', '/upload'];
 
 self.addEventListener('install', (e) => {
@@ -17,11 +17,16 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  // API — network-first
+
+  // Пропускаем всё кроме http/https (chrome-extension://, etc.)
+  if (!url.protocol.startsWith('http')) return;
+
+  // API — network-first, без кеша
   if (url.pathname.startsWith('/api/')) {
     e.respondWith(fetch(e.request).catch(() => new Response('{"error":"offline"}', { headers: { 'Content-Type': 'application/json' } })));
     return;
   }
+
   // Остальное — stale-while-revalidate
   e.respondWith(
     caches.open(CACHE).then(async (cache) => {
