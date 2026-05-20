@@ -4,13 +4,6 @@ import { getSupabaseAdmin } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 
-// Конфигурация VAPID
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT ?? 'mailto:admin@localhost',
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '',
-  process.env.VAPID_PRIVATE_KEY ?? '',
-);
-
 function err(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
 }
@@ -30,6 +23,17 @@ function isAuthorized(req: Request): boolean {
 
 export async function POST(req: Request) {
   if (!isAuthorized(req)) return err('UNAUTHORIZED', 'Forbidden', 401);
+
+  // Конфигурация VAPID — внутри обработчика, чтобы не падало при сборке
+  const publicKey  = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  if (!publicKey || !privateKey) return err('CONFIG_ERROR', 'VAPID keys not configured', 500);
+
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT ?? 'mailto:admin@localhost',
+    publicKey,
+    privateKey,
+  );
 
   const db = getSupabaseAdmin();
 
