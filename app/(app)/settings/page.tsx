@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TtsVoicePicker } from '@/components/tts-voice-picker';
 import { LocaleToggle } from '@/components/locale-toggle';
 import { PushToggle } from '@/components/push-toggle';
+import { GeminiUsage } from '@/components/gemini-usage';
 import { useI18n } from '@/lib/i18n/context';
 
 type SettingsData = {
@@ -215,6 +216,16 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               <PushToggle />
+            </CardContent>
+          </Card>
+
+          {/* Использование Gemini API */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Использование ИИ</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <GeminiUsage />
             </CardContent>
           </Card>
 

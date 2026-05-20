@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { SchemaType, type ResponseSchema } from '@google/generative-ai';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { getGemini, GEMINI_MODEL } from '@/lib/gemini/client';
+import { trackGeminiUsage } from '@/lib/gemini/track-usage';
 
 export const runtime = 'nodejs';
 
@@ -111,6 +112,7 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
     try {
       const result = await model.generateContent(prompt);
       enriched = JSON.parse(result.response.text()) as EnrichedData;
+      void trackGeminiUsage(result.response.usageMetadata, 'enrich');
       lastError = null;
       break;
     } catch (e) {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { SchemaType, type ResponseSchema } from '@google/generative-ai';
 import { getGemini, GEMINI_MODEL } from '@/lib/gemini/client';
+import { trackGeminiUsage } from '@/lib/gemini/track-usage';
 
 export const runtime = 'nodejs';
 
@@ -133,6 +134,7 @@ export async function POST(req: Request) {
     const lastMessage = messages[messages.length - 1];
     const chat   = model.startChat({ history });
     const result = await chat.sendMessage(lastMessage.content);
+    void trackGeminiUsage(result.response.usageMetadata, 'chat');
     const data   = JSON.parse(result.response.text());
 
     return NextResponse.json({
