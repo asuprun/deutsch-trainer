@@ -165,9 +165,10 @@ export default function PracticePage() {
         { role: 'model', content: data.reply, translation: data.translation, corrections: data.corrections },
       ]);
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       setMessages((prev) => [
         ...prev,
-        { role: 'model', content: '⚠️ Ошибка. Попробуй ещё раз.', corrections: [] },
+        { role: 'model', content: `⚠️ Ошибка: ${msg}`, corrections: [] },
       ]);
     } finally {
       setLoading(false);
