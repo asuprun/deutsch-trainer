@@ -3,10 +3,10 @@ import { getSupabaseAdmin } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 
-// Gemini 2.5 Flash free tier limits
+// Gemini 2.5 Flash free tier limits (актуально на май 2026)
 const FREE_TIER = {
-  rpd: 500,          // requests per day
-  tpd_in: 1_000_000, // input tokens per day (estimate: 1M/min * some factor)
+  rpd: 20,           // requests per day (GenerateRequestsPerDayPerProjectPerModel)
+  tpd_in: 1_000_000, // input tokens per minute (не в день)
 };
 
 export async function GET() {

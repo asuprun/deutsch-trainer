@@ -80,7 +80,17 @@ export async function POST(req: Request) {
     const result = await extractFromImage({ buffer: compressed.buffer, mimeType: compressed.mimeType });
     payload = result.payload;
   } catch (e) {
-    return err('EXTRACT_ERROR', e instanceof Error ? e.message : 'gemini failed', 422);
+    const raw = e instanceof Error ? e.message : 'gemini failed';
+    let userMsg = raw;
+    if (/429|Too Many Requests|quota|rate.?limit/i.test(raw)) {
+      userMsg = 'Превышен лимит Gemini API. Попробуй через ~40 секунд (дневной лимит free-tier: 20 запросов).';
+    } else if (/503|502|overload|unavailable/i.test(raw)) {
+      userMsg = 'Gemini временно перегружен. Подожди минуту и попробуй снова.';
+    } else if (/JSON|parse|syntax|SyntaxError/i.test(raw)) {
+      userMsg = 'Ошибка разбора ответа AI — скорее всего скрин слишком большой или сложный. Попробуй снова.';
+    }
+    console.error('[extract]', raw);
+    return err('EXTRACT_ERROR', userMsg, 422);
   }
 
   const upsert = await sb

@@ -142,7 +142,7 @@ export function GeminiUsage() {
 
       <p className="text-xs text-muted-foreground">
         <Zap className="size-3 inline mr-0.5" />
-        Gemini 2.5 Flash · Free tier: {limits.rpd} запросов/день
+        Gemini 2.5 Flash · Free tier: {limits.rpd} запросов/день · сбрасывается в полночь UTC
       </p>
     </div>
   );

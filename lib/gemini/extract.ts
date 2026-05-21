@@ -1,5 +1,5 @@
 import 'server-only';
-import { getGemini, GEMINI_MODEL, GEMINI_FALLBACK_MODEL } from './client';
+import { getGemini, GEMINI_MODEL } from './client';
 import {
   EXTRACT_SYSTEM_PROMPT,
   extractResponseSchema,
@@ -29,11 +29,10 @@ function isTransient(err: unknown): boolean {
 
 type Attempt = { model: string; preDelayMs: number };
 
+// gemini-2.0-flash имеет лимит 0 на free tier — не используем
 const ATTEMPTS: Attempt[] = [
   { model: GEMINI_MODEL, preDelayMs: 0 },
-  { model: GEMINI_MODEL, preDelayMs: 2000 },
-  { model: GEMINI_FALLBACK_MODEL, preDelayMs: 1000 },
-  { model: GEMINI_FALLBACK_MODEL, preDelayMs: 4000 },
+  { model: GEMINI_MODEL, preDelayMs: 5000 },
 ];
 
 export type ExtractFromImageResult = {
@@ -51,15 +50,23 @@ async function callOnce(modelName: string, image: { buffer: Buffer; mimeType: st
       responseMimeType: 'application/json',
       responseSchema: extractResponseSchema,
       temperature: 0.3,
-      maxOutputTokens: 8192,
+      maxOutputTokens: 16384,
     },
   });
   const res = await model.generateContent([
     { text: 'Извлеки учебный материал со скриншота. Верни строго JSON по схеме.' },
     { inlineData: { mimeType: image.mimeType, data: image.buffer.toString('base64') } },
   ]);
-  const text = res.response.text();
-  const parsed = JSON.parse(text);
+  const raw = res.response.text().trim();
+
+  // Gemini иногда оборачивает JSON в markdown или добавляет лишний текст — вырезаем
+  let jsonText = raw;
+  if (!jsonText.startsWith('{')) {
+    const match = jsonText.match(/\{[\s\S]*\}/);
+    if (match) jsonText = match[0];
+  }
+
+  const parsed = JSON.parse(jsonText);
   return extractPayloadSchema.parse(parsed);
 }
 

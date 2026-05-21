@@ -124,7 +124,12 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
   }
 
   if (!enriched || lastError) {
-    return { error: { code: 'GEMINI_ERROR', message: lastError?.message ?? 'Ошибка генерации' } };
+    const raw = lastError?.message ?? 'Ошибка генерации';
+    let userMsg = raw;
+    if (/429|Too Many Requests|quota|rate.?limit/i.test(raw)) {
+      userMsg = 'Превышен лимит Gemini API. Попробуй позже (дневной лимит free-tier: 20 запросов).';
+    }
+    return { error: { code: 'GEMINI_ERROR', message: userMsg } };
   }
 
   const updates: Record<string, unknown> = {
