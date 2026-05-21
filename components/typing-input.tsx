@@ -29,8 +29,9 @@ const RESULT_CONFIG: Record<
 };
 
 export function TypingInput({ correctAnswer, hint, intervals, onRate, disabled }: Props) {
-  const inputRef  = useRef<HTMLInputElement>(null);
+  const inputRef   = useRef<HTMLInputElement>(null);
   const nextBtnRef = useRef<HTMLButtonElement>(null);
+  const resultRef  = useRef<HTMLDivElement>(null);
   const [value, setValue]   = useState('');
   const [result, setResult] = useState<CompareResult | null>(null);
   const [checked, setChecked] = useState(false);
@@ -41,11 +42,15 @@ export function TypingInput({ correctAnswer, hint, intervals, onRate, disabled }
     return () => clearTimeout(t);
   }, []);
 
-  // После проверки — фокус на кнопку «Далее» чтобы Enter сразу работал
+  // После проверки — фокус на «Далее» + скролл к результату (мобилка)
   useEffect(() => {
     if (checked) {
-      const t = setTimeout(() => nextBtnRef.current?.focus(), 60);
-      return () => clearTimeout(t);
+      const t1 = setTimeout(() => nextBtnRef.current?.focus(), 60);
+      // Даём клавиатуре закрыться (~300ms), затем скроллим к результату
+      const t2 = setTimeout(() => {
+        resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 350);
+      return () => { clearTimeout(t1); clearTimeout(t2); };
     }
   }, [checked]);
 
@@ -125,7 +130,7 @@ export function TypingInput({ correctAnswer, hint, intervals, onRate, disabled }
 
       {/* Результат */}
       {checked && cfg && Icon && (
-        <div className={cn('rounded-lg border p-4 flex flex-col gap-2', cfg.bg)}>
+        <div ref={resultRef} className={cn('rounded-lg border p-4 flex flex-col gap-2', cfg.bg)}>
           <div className={cn('flex items-center gap-2 font-semibold', cfg.color)}>
             <Icon className="size-5" />
             {cfg.label}

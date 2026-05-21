@@ -192,8 +192,10 @@ export default function ReviewPage() {
   if (!current) return null;
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="flex items-center gap-2 border-b px-4 py-3 sm:px-6">
+    // h-[100dvh] = динамический viewport: сжимается когда открыта клавиатура,
+    // восстанавливается когда закрывается — без ручного скролла
+    <div className="flex flex-col h-[100dvh]">
+      <header className="shrink-0 flex items-center gap-2 border-b px-4 py-3 sm:px-6">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/" aria-label="Закрыть тренировку">
             <X className="size-5" />
@@ -237,43 +239,49 @@ export default function ReviewPage() {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center p-6 gap-8">
-        {/* Карточка — в режиме ввода показываем только лицевую сторону до проверки */}
-        {mode === 'cards' ? (
-          <SwipeCard
-            onSwipeLeft={flipped ? () => handleRate(1) : undefined}
-            onSwipeRight={flipped ? () => handleRate(4) : () => setFlipped(true)}
-            leftLabel={flipped ? '✗ Снова' : undefined}
-            rightLabel={flipped ? '✓ Легко' : '👁 Ответ'}
-            disabled={submitting}
-          >
-            <ReviewCard card={current} flipped={flipped} />
-          </SwipeCard>
-        ) : (
-          <ReviewCard card={current} flipped={false} />
-        )}
+      {/* min-h-0 + overflow-y-auto: скролл внутри оставшегося пространства.
+          Внутренний div с min-h-full + justify-center: центрирует когда влезает,
+          скроллится когда не влезает (после флипа с примерами). */}
+      <main className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex flex-col items-center justify-center min-h-full p-4 gap-6">
+          {/* Карточка — в режиме ввода показываем только лицевую сторону до проверки */}
+          {mode === 'cards' ? (
+            <SwipeCard
+              onSwipeLeft={flipped ? () => handleRate(1) : undefined}
+              onSwipeRight={flipped ? () => handleRate(4) : () => setFlipped(true)}
+              leftLabel={flipped ? '✗ Снова' : undefined}
+              rightLabel={flipped ? '✓ Легко' : '👁 Ответ'}
+              disabled={submitting}
+            >
+              <ReviewCard card={current} flipped={flipped} />
+            </SwipeCard>
+          ) : (
+            <ReviewCard card={current} flipped={false} />
+          )}
 
-        {mode === 'cards' && !flipped && (
-          <Button size="lg" onClick={() => setFlipped(true)}>
-            {t('review_show_answer')}
-            <kbd className="ml-2 rounded bg-black/20 px-1.5 py-0.5 text-xs font-mono">Space</kbd>
-          </Button>
-        )}
+          {mode === 'cards' && !flipped && (
+            <Button size="lg" onClick={() => setFlipped(true)}>
+              {t('review_show_answer')}
+              <kbd className="ml-2 rounded bg-black/20 px-1.5 py-0.5 text-xs font-mono hidden sm:inline">Space</kbd>
+            </Button>
+          )}
 
-        {mode === 'typing' && (
-          <TypingInput
-            key={current.id}
-            correctAnswer={current.back}
-            hint="Введи перевод на русский"
-            intervals={current.intervals}
-            onRate={handleRate}
-            disabled={submitting}
-          />
-        )}
+          {mode === 'typing' && (
+            <TypingInput
+              key={current.id}
+              correctAnswer={current.back}
+              hint="Введи перевод на русский"
+              intervals={current.intervals}
+              onRate={handleRate}
+              disabled={submitting}
+            />
+          )}
+        </div>
       </main>
 
+      {/* Оценки — всегда внизу экрана, не в скролл-зоне */}
       {mode === 'cards' && flipped && (
-        <footer className="border-t p-4 sm:p-6 bg-background/95 backdrop-blur sticky bottom-0">
+        <footer className="shrink-0 border-t p-4 sm:p-6 bg-background/95 backdrop-blur">
           <div className="max-w-3xl mx-auto">
             <RatingButtons intervals={current.intervals} onRate={handleRate} disabled={submitting} />
           </div>

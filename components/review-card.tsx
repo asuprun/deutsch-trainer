@@ -145,14 +145,14 @@ export function ReviewCard({ card, flipped, autoTts = true }: Props) {
             </div>
 
             {card.examples && card.examples.length > 0 && (
-              <div className="w-full max-w-xl text-sm space-y-2">
+              <div className="w-full max-w-xl space-y-3">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Примеры</p>
                 {card.examples.map((ex, i) => (
                   <div key={i} className="flex items-start gap-2">
-                    <TTSButton text={ex.de} size="icon" className="size-7 mt-0.5" />
-                    <div>
-                      <div className="font-medium">{ex.de}</div>
-                      <div className="text-muted-foreground">{ex.ru}</div>
+                    <TTSButton text={ex.de} size="icon" className="size-7 mt-0.5 shrink-0" />
+                    <div className="flex flex-col gap-0.5">
+                      <div className="font-medium text-[15px] leading-snug">{ex.de}</div>
+                      <div className="text-muted-foreground text-[13px]">{ex.ru}</div>
                     </div>
                   </div>
                 ))}
