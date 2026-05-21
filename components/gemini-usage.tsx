@@ -88,14 +88,16 @@ export function GeminiUsage() {
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between text-sm">
           <span className="font-medium">Сегодня</span>
-          <span className={cn('tabular-nums', rpdPct >= 0.9 ? 'text-red-500' : rpdPct >= 0.7 ? 'text-amber-500' : 'text-muted-foreground')}>
-            {today.requests} / {limits.rpd} запросов
+          <span className="tabular-nums text-muted-foreground">
+            {today.requests} запросов{limits.rpd > 0 ? ` / ${limits.rpd}` : ''}
           </span>
         </div>
-        <Bar value={today.requests} max={limits.rpd} />
+        {limits.rpd > 0 && <Bar value={today.requests} max={limits.rpd} />}
         <p className="text-xs text-muted-foreground">
-          Осталось: <span className="font-medium text-foreground">{remaining}</span> запросов
-          {' · '}токены: {fmt(today.tokens_in)} вх / {fmt(today.tokens_out)} исх
+          {limits.rpd > 0
+            ? <>Осталось: <span className="font-medium text-foreground">{remaining}</span> · </>
+            : null}
+          токены: {fmt(today.tokens_in)} вх / {fmt(today.tokens_out)} исх
         </p>
       </div>
 
@@ -142,7 +144,7 @@ export function GeminiUsage() {
 
       <p className="text-xs text-muted-foreground">
         <Zap className="size-3 inline mr-0.5" />
-        Gemini 2.5 Flash Lite · Free tier: {limits.rpd} запросов/день · сбрасывается в полночь UTC
+        Gemini 2.5 Flash Lite · Free tier: {limits.rpd > 0 ? `${limits.rpd} запросов/день` : 'лимит уточняется'} · сбрасывается в полночь UTC
       </p>
     </div>
   );
