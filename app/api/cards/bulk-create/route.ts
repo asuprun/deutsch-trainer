@@ -103,6 +103,26 @@ export async function POST(req: Request) {
     const { data, error } = await sb.from('grammar_notes').insert(grammarRows).select('id');
     if (error) return err('DB_ERROR', `grammar insert: ${error.message}`, 500);
     grammar_ids.push(...(data?.map((r) => r.id) ?? []));
+
+    // Дублируем грамматику как карты grammar_rule для повторения по FSRS
+    const grammarCardRows = grammarRows.map((g) => ({
+      source_id,
+      kind: 'grammar_rule' as const,
+      front: g.title,
+      back: g.explanation.slice(0, 2000),
+      examples: g.examples ?? null,
+      tags: g.tags ?? [],
+      fsrs_state: fsrsBase,
+      due_at: fsrsBase.due ?? now,
+      word_type: null,
+      gender: null,
+      plural: null,
+      forms: null,
+      mnemonic: null,
+    }));
+    const { data: gcData, error: gcErr } = await sb.from('cards').insert(grammarCardRows).select('id');
+    if (gcErr) return err('DB_ERROR', `grammar cards insert: ${gcErr.message}`, 500);
+    card_ids.push(...(gcData?.map((r) => r.id) ?? []));
   }
 
   return NextResponse.json(
