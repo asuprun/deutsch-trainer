@@ -234,11 +234,27 @@ export default function CardsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
+
+      type BatchResult = { id: string; ok: boolean; error?: string };
+
       if (data.succeeded === 0) {
-        const firstErr = data.results?.find((r: { ok: boolean; error?: string }) => !r.ok)?.error;
+        const firstErr = data.results?.find((r: BatchResult) => !r.ok)?.error;
         toast.error(`Не удалось обогатить карты`, { description: firstErr ?? 'Проверь лимит Gemini API' });
       } else {
         toast.success(`Обогащено ${data.succeeded} из ${data.total} карт ✨`);
+        // Показать детали по упавшим
+        const failed: BatchResult[] = (data.results ?? []).filter((r: BatchResult) => !r.ok);
+        if (failed.length > 0) {
+          const names = failed
+            .map((r) => unenriched.find((c) => c.id === r.id)?.front ?? '?')
+            .slice(0, 5)
+            .join(', ');
+          const uniqueErrors = [...new Set(failed.map((r) => r.error).filter(Boolean))];
+          toast.warning(`${failed.length} карт не удалось обогатить`, {
+            description: names + (failed.length > 5 ? '…' : '') + (uniqueErrors.length ? ` — ${uniqueErrors[0]}` : ''),
+            duration: 12000,
+          });
+        }
       }
       fetchCards();
     } catch (e) {
