@@ -221,6 +221,10 @@ export default function CardsPage() {
       toast.info('Все карты на странице уже обогащены');
       return;
     }
+    const n = unenriched.length;
+    const estSec = Math.round(n * 4.5);
+    const estMin = estSec >= 60 ? `~${Math.ceil(estSec / 60)} мин` : `~${estSec}с`;
+    toast.info(`Обогащаю ${n} карт… (${estMin})`, { duration: estSec * 1000 });
     setEnrichingBatch(true);
     try {
       const res = await fetch('/api/cards/enrich-batch', {
@@ -230,7 +234,12 @@ export default function CardsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
-      toast.success(`Обогащено ${data.succeeded} из ${data.total} карт ✨`);
+      if (data.succeeded === 0) {
+        const firstErr = data.results?.find((r: { ok: boolean; error?: string }) => !r.ok)?.error;
+        toast.error(`Не удалось обогатить карты`, { description: firstErr ?? 'Проверь лимит Gemini API' });
+      } else {
+        toast.success(`Обогащено ${data.succeeded} из ${data.total} карт ✨`);
+      }
       fetchCards();
     } catch (e) {
       toast.error('Ошибка пакетного обогащения', {
