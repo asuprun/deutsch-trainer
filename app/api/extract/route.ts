@@ -83,7 +83,7 @@ export async function POST(req: Request) {
     const raw = e instanceof Error ? e.message : 'gemini failed';
     let userMsg = raw;
     if (/429|Too Many Requests|quota|rate.?limit/i.test(raw)) {
-      userMsg = 'Превышен лимит Gemini API. Попробуй через ~40 секунд (дневной лимит free-tier: 1500 запросов).';
+      userMsg = 'Превышен лимит Gemini API (429). Подожди минуту и попробуй снова — или дождись сброса в полночь UTC.';
     } else if (/503|502|overload|unavailable/i.test(raw)) {
       userMsg = 'Gemini временно перегружен. Подожди минуту и попробуй снова.';
     } else if (/JSON|parse|syntax|SyntaxError/i.test(raw)) {
