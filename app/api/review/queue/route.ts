@@ -22,6 +22,7 @@ export async function GET(req: Request) {
     .from('cards')
     .select('id, kind, front, back, word_type, gender, plural, forms, examples, mnemonic, tags, fsrs_state, due_at, reps, lapses', { count: 'exact' })
     .lte('due_at', nowIso)
+    .neq('kind', 'grammar_rule')   // грамматика тренируется в разделе «Грамматика»
     .order('due_at', { ascending: true })
     .limit(limit);
 
