@@ -14,5 +14,5 @@ export function getGemini(): GoogleGenerativeAI {
   return cached;
 }
 
-export const GEMINI_MODEL = 'gemini-2.5-flash-lite';
-export const GEMINI_FALLBACK_MODEL = 'gemini-2.0-flash-lite';
+export const GEMINI_MODEL = 'gemini-2.0-flash-lite';
+export const GEMINI_FALLBACK_MODEL = 'gemini-2.5-flash-lite';
