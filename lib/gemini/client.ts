@@ -6,9 +6,7 @@ let cached: GoogleGenerativeAI | null = null;
 export function getGemini(): GoogleGenerativeAI {
   if (!cached) {
     const key = process.env.GEMINI_API_KEY;
-    if (!key) {
-      throw new Error('GEMINI_API_KEY is missing');
-    }
+    if (!key) throw new Error('GEMINI_API_KEY is missing');
     cached = new GoogleGenerativeAI(key);
   }
   return cached;
@@ -16,3 +14,50 @@ export function getGemini(): GoogleGenerativeAI {
 
 export const GEMINI_MODEL = 'gemini-2.5-flash-lite';
 export const GEMINI_FALLBACK_MODEL = 'gemini-2.0-flash-lite';
+
+/**
+ * Каскад моделей по приоритету.
+ * При 429 (квота исчерпана) автоматически переключаемся на следующую.
+ * Каждая даёт ~1500 RPD free → суммарно ~6000 RPD/день.
+ *
+ * Лимиты free tier:
+ *   gemini-2.5-flash-lite — RPM: 10, RPD: ~1500 (уточняется)
+ *   gemini-2.0-flash      — RPM: 10, RPD: 1500
+ *   gemini-2.0-flash-lite — RPM: 10, RPD: 1500
+ *   gemini-1.5-flash      — RPM: 15, RPD: 1500
+ */
+export const GEMINI_CASCADE = [
+  'gemini-2.5-flash-lite',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-1.5-flash',
+] as const;
+
+function is429(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /429|Too Many Requests|quota|rate.?limit/i.test(msg);
+}
+
+/**
+ * Вызывает fn(modelName) для каждой модели из GEMINI_CASCADE по порядку.
+ * Переключается на следующую модель ТОЛЬКО при 429 (квота исчерпана).
+ * Прочие ошибки пробрасываются немедленно без перебора.
+ *
+ * Возвращает { result, modelUsed } — какая модель ответила.
+ */
+export async function callWithCascade<T>(
+  fn: (modelName: string) => Promise<T>,
+): Promise<{ result: T; modelUsed: string }> {
+  let lastError: unknown;
+  for (const modelName of GEMINI_CASCADE) {
+    try {
+      const result = await fn(modelName);
+      return { result, modelUsed: modelName };
+    } catch (e) {
+      lastError = e;
+      if (!is429(e)) throw e; // Не квотовая ошибка — пробрасываем сразу
+      // 429 → пробуем следующую модель
+    }
+  }
+  throw lastError;
+}

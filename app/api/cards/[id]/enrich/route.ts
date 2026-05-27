@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { SchemaType, type ResponseSchema } from '@google/generative-ai';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
-import { getGemini, GEMINI_MODEL } from '@/lib/gemini/client';
+import { getGemini, callWithCascade } from '@/lib/gemini/client';
 import { trackGeminiUsage } from '@/lib/gemini/track-usage';
 
 export const runtime = 'nodejs';
@@ -70,16 +70,6 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
   if (fetchErr) return { error: { code: 'DB_ERROR', message: fetchErr.message } };
   if (!card) return { error: { code: 'NOT_FOUND', message: 'Карта не найдена' } };
 
-  const model = getGemini().getGenerativeModel({
-    model: GEMINI_MODEL,
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema,
-      temperature: 0.3,
-      maxOutputTokens: 1024,
-    },
-  });
-
   const prompt = `Обогати немецкую карточку для обучения:
 
 Слово/фраза (немецкий): "${card.front}"
@@ -103,31 +93,36 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
     examples: { de: string; ru: string }[];
   };
 
-  // Retry up to 3 attempts — Gemini 2.5 Flash sometimes fails on first try
-  const MAX_ATTEMPTS = 3;
   let enriched: EnrichedData | null = null;
   let lastError: Error | null = null;
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    try {
-      const result = await model.generateContent(prompt);
-      enriched = JSON.parse(result.response.text()) as EnrichedData;
-      void trackGeminiUsage(result.response.usageMetadata, 'enrich');
-      lastError = null;
-      break;
-    } catch (e) {
-      lastError = e instanceof Error ? e : new Error(String(e));
-      if (attempt < MAX_ATTEMPTS) {
-        await new Promise((r) => setTimeout(r, attempt * 1000));
-      }
-    }
+  try {
+    const { result, modelUsed } = await callWithCascade(async (modelName) => {
+      const model = getGemini().getGenerativeModel({
+        model: modelName,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema,
+          temperature: 0.3,
+          maxOutputTokens: 1024,
+        },
+      });
+      const res = await model.generateContent(prompt);
+      const data = JSON.parse(res.response.text()) as EnrichedData;
+      void trackGeminiUsage(res.response.usageMetadata, 'enrich', modelName);
+      return data;
+    });
+    enriched = result;
+    void modelUsed; // used implicitly via trackGeminiUsage inside fn
+  } catch (e) {
+    lastError = e instanceof Error ? e : new Error(String(e));
   }
 
   if (!enriched || lastError) {
     const raw = lastError?.message ?? 'Ошибка генерации';
     let userMsg = raw;
     if (/429|Too Many Requests|quota|rate.?limit/i.test(raw)) {
-      userMsg = 'Превышен лимит Gemini API (429). Подожди минуту и попробуй ещё раз — или дождись сброса в полночь UTC.';
+      userMsg = 'Все модели Gemini достигли дневного лимита. Попробуй завтра после полуночи UTC.';
     }
     return { error: { code: 'GEMINI_ERROR', message: userMsg } };
   }

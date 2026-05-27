@@ -1,5 +1,5 @@
 import 'server-only';
-import { getGemini, GEMINI_MODEL } from './client';
+import { getGemini, GEMINI_CASCADE } from './client';
 import {
   EXTRACT_SYSTEM_PROMPT,
   extractResponseSchema,
@@ -29,11 +29,8 @@ function isTransient(err: unknown): boolean {
 
 type Attempt = { model: string; preDelayMs: number };
 
-// gemini-2.0-flash имеет лимит 0 на free tier — не используем
-const ATTEMPTS: Attempt[] = [
-  { model: GEMINI_MODEL, preDelayMs: 0 },
-  { model: GEMINI_MODEL, preDelayMs: 5000 },
-];
+// Каскад всех моделей: при 429 переключаемся на следующую (~6000 RPD суммарно)
+const ATTEMPTS: Attempt[] = GEMINI_CASCADE.map((model) => ({ model, preDelayMs: 0 }));
 
 export type ExtractFromImageResult = {
   payload: ExtractPayload;

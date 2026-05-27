@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { SchemaType, type ResponseSchema } from '@google/generative-ai';
-import { getGemini, GEMINI_MODEL } from '@/lib/gemini/client';
+import { getGemini, callWithCascade } from '@/lib/gemini/client';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
@@ -80,18 +80,19 @@ export async function POST(req: Request) {
 - Предложения разной сложности, все связаны с темой`.trim();
 
   try {
-    const model = getGemini().getGenerativeModel({
-      model: GEMINI_MODEL,
-      generationConfig: {
-        responseMimeType: 'application/json',
-        responseSchema,
-        temperature: 0.75,
-        maxOutputTokens: 2048,
-      },
+    const { result: data } = await callWithCascade(async (modelName) => {
+      const model = getGemini().getGenerativeModel({
+        model: modelName,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema,
+          temperature: 0.75,
+          maxOutputTokens: 2048,
+        },
+      });
+      const res = await model.generateContent(prompt);
+      return JSON.parse(res.response.text());
     });
-
-    const result = await model.generateContent(prompt);
-    const data = JSON.parse(result.response.text());
 
     return NextResponse.json({ exercises: data.exercises ?? [] });
   } catch (e) {
