@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/lib/i18n/context';
 
 type Props = {
   value: string;
@@ -12,6 +13,7 @@ type Props = {
 const TEST_PHRASE = 'Guten Tag! Wie geht es Ihnen?';
 
 export function TtsVoicePicker({ value, onChange, lang = 'de-DE' }: Props) {
+  const { t } = useI18n();
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [supported, setSupported] = useState(false);
 
@@ -48,17 +50,13 @@ export function TtsVoicePicker({ value, onChange, lang = 'de-DE' }: Props) {
 
   if (!supported) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Браузер не поддерживает Web Speech API.
-      </p>
+      <p className="text-sm text-muted-foreground">{t('settings_tts_unsupported')}</p>
     );
   }
 
   if (voices.length === 0) {
     return (
-      <p className="text-sm text-amber-500">
-        Голоса для языка {lang} не найдены. Возможно, они загружаются или не установлены в системе.
-      </p>
+      <p className="text-sm text-amber-500">{t('settings_tts_no_voices')}</p>
     );
   }
 
@@ -78,7 +76,7 @@ export function TtsVoicePicker({ value, onChange, lang = 'de-DE' }: Props) {
         ))}
       </select>
       <Button type="button" variant="outline" size="sm" onClick={handleTest}>
-        ▶ Тест
+        ▶ {t('settings_tts_test')}
       </Button>
     </div>
   );

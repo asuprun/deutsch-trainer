@@ -108,7 +108,7 @@ export default function SettingsPage() {
     <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-xl">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">{t('settings_title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Параметры обучения и интерфейса</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t('settings_subtitle')}</p>
       </header>
 
       {loading ? (
@@ -172,7 +172,7 @@ export default function SettingsPage() {
                   onChange={handleChange('request_retention')}
                 />
                 <p className="text-xs text-muted-foreground">
-                  0.9 — по умолчанию. Выше = чаще повторения.
+                  {t('settings_retention_hint')}
                 </p>
               </div>
             </CardContent>
@@ -212,7 +212,7 @@ export default function SettingsPage() {
           {/* Уведомления */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Уведомления</CardTitle>
+              <CardTitle className="text-base">{t('settings_notifications')}</CardTitle>
             </CardHeader>
             <CardContent>
               <PushToggle />
@@ -222,7 +222,7 @@ export default function SettingsPage() {
           {/* Использование Gemini API */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Использование ИИ</CardTitle>
+              <CardTitle className="text-base">{t('settings_ai_usage')}</CardTitle>
             </CardHeader>
             <CardContent>
               <GeminiUsage />
@@ -239,7 +239,7 @@ export default function SettingsPage() {
             <Button variant="outline" asChild className="gap-2">
               <a href="/api/export/csv" download="deutsch-trainer-cards.csv">
                 <Download className="size-4" />
-                Экспорт карт (CSV)
+                {t('settings_export_csv')}
               </a>
             </Button>
           </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/context';
 
 type UsageData = {
   today: {
@@ -16,10 +17,10 @@ type UsageData = {
 };
 
 const ROUTE_LABELS: Record<string, string> = {
-  enrich: '✨ Обогащение',
-  chat: '💬 Чат',
-  grammar: '📚 Грамматика',
-  upload: '📷 Загрузка',
+  enrich: '✨ Enrich',
+  chat: '💬 Chat',
+  grammar: '📚 Grammar',
+  upload: '📷 Upload',
   unknown: '?',
 };
 
@@ -45,6 +46,7 @@ function Bar({ value, max, warn = 0.7, danger = 0.9 }: { value: number; max: num
 }
 
 export function GeminiUsage() {
+  const { t, locale } = useI18n();
   const [data, setData] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -60,7 +62,7 @@ export function GeminiUsage() {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
         <Loader2 className="size-4 animate-spin" />
-        Загрузка…
+        {t('btn_loading')}
       </div>
     );
   }
@@ -72,7 +74,6 @@ export function GeminiUsage() {
   }
 
   const { today, limits, week } = data;
-  const rpdPct = today.requests / limits.rpd;
   const remaining = limits.rpd - today.requests;
 
   // Last 7 days bar chart data
@@ -82,29 +83,31 @@ export function GeminiUsage() {
 
   const maxDayReqs = Math.max(...days.map(([, v]) => v.requests), 1);
 
+  const weekdayLocale = locale === 'de' ? 'de' : locale === 'en' ? 'en' : 'ru';
+
   return (
     <div className="flex flex-col gap-4">
       {/* Today summary */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="font-medium">Сегодня</span>
+          <span className="font-medium">{t('ai_today')}</span>
           <span className="tabular-nums text-muted-foreground">
-            {today.requests} запросов{limits.rpd > 0 ? ` / ${limits.rpd}` : ''}
+            {today.requests} {limits.rpd > 0 ? ` / ${limits.rpd}` : ''}
           </span>
         </div>
         {limits.rpd > 0 && <Bar value={today.requests} max={limits.rpd} />}
         <p className="text-xs text-muted-foreground">
           {limits.rpd > 0
-            ? <>Осталось: <span className="font-medium text-foreground">{remaining}</span> · </>
+            ? <>{remaining} · </>
             : null}
-          токены: {fmt(today.tokens_in)} вх / {fmt(today.tokens_out)} исх
+          {t('ai_tokens')}: {fmt(today.tokens_in)} in / {fmt(today.tokens_out)} out
         </p>
       </div>
 
       {/* Per route */}
       {Object.keys(today.by_route).length > 0 && (
         <div className="flex flex-col gap-1">
-          <p className="text-xs font-medium text-muted-foreground">По функциям сегодня</p>
+          <p className="text-xs font-medium text-muted-foreground">{t('ai_by_route_title')}</p>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {Object.entries(today.by_route)
               .sort(([, a], [, b]) => b - a)
@@ -121,19 +124,19 @@ export function GeminiUsage() {
       {/* 7-day mini bar chart */}
       {days.length > 1 && (
         <div className="flex flex-col gap-1.5">
-          <p className="text-xs font-medium text-muted-foreground">7 дней</p>
+          <p className="text-xs font-medium text-muted-foreground">{t('ai_7days')}</p>
           <div className="flex items-end gap-1 h-12">
             {days.map(([date, val]) => {
               const h = Math.max(4, Math.round((val.requests / maxDayReqs) * 48));
               const isToday = date === new Date().toISOString().slice(0, 10);
               return (
-                <div key={date} className="flex flex-col items-center gap-0.5 flex-1" title={`${date}: ${val.requests} запросов`}>
+                <div key={date} className="flex flex-col items-center gap-0.5 flex-1" title={`${date}: ${val.requests}`}>
                   <div
                     className={cn('w-full rounded-sm', isToday ? 'bg-primary' : 'bg-muted-foreground/30')}
                     style={{ height: `${h}px` }}
                   />
                   <span className="text-[9px] text-muted-foreground/60">
-                    {new Date(date + 'T12:00:00').toLocaleDateString('ru', { weekday: 'short' })}
+                    {new Date(date + 'T12:00:00').toLocaleDateString(weekdayLocale, { weekday: 'short' })}
                   </span>
                 </div>
               );
@@ -144,7 +147,7 @@ export function GeminiUsage() {
 
       <p className="text-xs text-muted-foreground">
         <Zap className="size-3 inline mr-0.5" />
-        Gemini 2.5 Flash Lite · Free tier: {limits.rpd > 0 ? `${limits.rpd} запросов/день` : 'лимит уточняется'} · сбрасывается в полночь UTC
+        Gemini · Free tier: {limits.rpd > 0 ? `${limits.rpd}/day` : t('ai_limit_unknown')} · {t('ai_reset_note')}
       </p>
     </div>
   );

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Bell, BellOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { useI18n } from '@/lib/i18n/context';
 
 type PushState = 'unsupported' | 'denied' | 'subscribed' | 'unsubscribed' | 'loading';
 
@@ -21,6 +22,7 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
 }
 
 export function PushToggle() {
+  const { t } = useI18n();
   const [state, setState] = useState<PushState>('loading');
 
   useEffect(() => {
@@ -62,8 +64,8 @@ export function PushToggle() {
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setState('subscribed');
-      toast.success('Уведомления включены', {
-        description: 'Напомним, когда карточки будут готовы к повторению',
+      toast.success(t('push_enable'), {
+        description: t('push_hint'),
       });
     } catch (e) {
       setState('unsubscribed');
@@ -85,7 +87,7 @@ export function PushToggle() {
         });
       }
       setState('unsubscribed');
-      toast.success('Уведомления отключены');
+      toast.success(t('push_disable'));
     } catch (e) {
       setState('subscribed');
       toast.error('Ошибка отписки', {
@@ -95,26 +97,18 @@ export function PushToggle() {
   }
 
   if (state === 'unsupported') {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Браузер не поддерживает push-уведомления
-      </p>
-    );
+    return <p className="text-sm text-muted-foreground">{t('push_unsupported')}</p>;
   }
 
   if (state === 'denied') {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Уведомления заблокированы. Разреши их в настройках браузера.
-      </p>
-    );
+    return <p className="text-sm text-muted-foreground">{t('push_denied')}</p>;
   }
 
   if (state === 'loading') {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="size-4 animate-spin" />
-        <span>Загрузка…</span>
+        <span>{t('btn_loading')}</span>
       </div>
     );
   }
@@ -124,11 +118,11 @@ export function PushToggle() {
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
           <Bell className="size-4" />
-          <span>Включены · каждый день в 8:00 UTC</span>
+          <span>{t('push_enabled')}</span>
         </div>
         <Button size="sm" variant="outline" onClick={unsubscribe}>
           <BellOff className="size-3.5 mr-1.5" />
-          Отключить
+          {t('push_disable')}
         </Button>
       </div>
     );
@@ -139,11 +133,9 @@ export function PushToggle() {
     <div className="flex flex-col gap-2">
       <Button size="sm" onClick={subscribe} className="w-fit">
         <Bell className="size-3.5 mr-1.5" />
-        Включить уведомления
+        {t('push_enable')}
       </Button>
-      <p className="text-xs text-muted-foreground">
-        Пришлём напоминание, когда карточки будут готовы к повторению
-      </p>
+      <p className="text-xs text-muted-foreground">{t('push_hint')}</p>
     </div>
   );
 }
