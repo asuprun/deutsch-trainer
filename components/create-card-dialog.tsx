@@ -12,20 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-
-const KIND_OPTIONS = [
-  { value: 'vocab', label: 'Слово' },
-  { value: 'phrase', label: 'Фраза' },
-  { value: 'grammar_rule', label: 'Грамматика' },
-  { value: 'sentence', label: 'Предложение' },
-];
-
-const GENDER_OPTIONS = [
-  { value: '', label: '—' },
-  { value: 'der', label: 'der' },
-  { value: 'die', label: 'die' },
-  { value: 'das', label: 'das' },
-];
+import { useI18n } from '@/lib/i18n/context';
 
 type Props = {
   open: boolean;
@@ -34,12 +21,27 @@ type Props = {
 };
 
 export function CreateCardDialog({ open, onOpenChange, onCreated }: Props) {
+  const { t } = useI18n();
   const [front, setFront] = useState('');
   const [back, setBack] = useState('');
   const [kind, setKind] = useState<'vocab' | 'phrase' | 'grammar_rule' | 'sentence'>('vocab');
   const [gender, setGender] = useState('');
   const [tags, setTags] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const KIND_OPTIONS = [
+    { value: 'vocab', label: t('create_kind_vocab') },
+    { value: 'phrase', label: t('create_kind_phrase') },
+    { value: 'grammar_rule', label: t('create_kind_grammar') },
+    { value: 'sentence', label: t('create_kind_sentence') },
+  ];
+
+  const GENDER_OPTIONS = [
+    { value: '', label: '—' },
+    { value: 'der', label: 'der' },
+    { value: 'die', label: 'die' },
+    { value: 'das', label: 'das' },
+  ];
 
   function reset() {
     setFront('');
@@ -62,7 +64,7 @@ export function CreateCardDialog({ open, onOpenChange, onCreated }: Props) {
     try {
       const tagsArr = tags
         .split(',')
-        .map((t) => t.trim())
+        .map((tg) => tg.trim())
         .filter(Boolean);
 
       const body: Record<string, unknown> = {
@@ -87,11 +89,11 @@ export function CreateCardDialog({ open, onOpenChange, onCreated }: Props) {
         throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
       }
 
-      toast.success('Карта создана');
+      toast.success(t('create_created'));
       onCreated();
       handleOpenChange(false);
     } catch (e) {
-      toast.error('Не удалось создать карту', {
+      toast.error(t('create_error'), {
         description: e instanceof Error ? e.message : '',
       });
     } finally {
@@ -103,13 +105,13 @@ export function CreateCardDialog({ open, onOpenChange, onCreated }: Props) {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Новая карточка</DialogTitle>
+          <DialogTitle>{t('create_title')}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 py-2">
           <div className="grid gap-1.5">
             <label className="text-sm font-medium">
-              Немецкий <span className="text-destructive">*</span>
+              {t('create_label_german')} <span className="text-destructive">*</span>
             </label>
             <Input
               placeholder="das Haus, gehen..."
@@ -122,7 +124,7 @@ export function CreateCardDialog({ open, onOpenChange, onCreated }: Props) {
 
           <div className="grid gap-1.5">
             <label className="text-sm font-medium">
-              Перевод <span className="text-destructive">*</span>
+              {t('create_label_translation')} <span className="text-destructive">*</span>
             </label>
             <Input
               placeholder="дом, идти..."
@@ -133,7 +135,7 @@ export function CreateCardDialog({ open, onOpenChange, onCreated }: Props) {
           </div>
 
           <div className="grid gap-1.5">
-            <label className="text-sm font-medium">Тип</label>
+            <label className="text-sm font-medium">{t('create_label_kind')}</label>
             <select
               value={kind}
               onChange={(e) =>
@@ -151,7 +153,7 @@ export function CreateCardDialog({ open, onOpenChange, onCreated }: Props) {
 
           {kind === 'vocab' && (
             <div className="grid gap-1.5">
-              <label className="text-sm font-medium">Артикль</label>
+              <label className="text-sm font-medium">{t('create_label_article')}</label>
               <select
                 value={gender}
                 onChange={(e) => setGender(e.target.value)}
@@ -167,13 +169,13 @@ export function CreateCardDialog({ open, onOpenChange, onCreated }: Props) {
           )}
 
           <div className="grid gap-1.5">
-            <label className="text-sm font-medium">Теги</label>
+            <label className="text-sm font-medium">{t('create_label_tags')}</label>
             <Input
-              placeholder="A1, существительные, дом"
+              placeholder={t('create_tags_placeholder')}
               value={tags}
               onChange={(e) => setTags(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">Через запятую</p>
+            <p className="text-xs text-muted-foreground">{t('create_tags_hint')}</p>
           </div>
 
           <DialogFooter className="pt-2">
@@ -183,14 +185,14 @@ export function CreateCardDialog({ open, onOpenChange, onCreated }: Props) {
               onClick={() => handleOpenChange(false)}
               disabled={saving}
             >
-              Отмена
+              {t('create_cancel')}
             </Button>
             <Button
               type="submit"
               disabled={!front.trim() || !back.trim() || saving}
             >
               {saving && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
-              Сохранить
+              {t('create_save')}
             </Button>
           </DialogFooter>
         </form>

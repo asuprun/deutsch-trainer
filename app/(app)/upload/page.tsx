@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { UploadZone } from '@/components/upload-zone';
 import { ExtractPreview, type Selection } from '@/components/extract-preview';
 import type { ExtractPayload } from '@/lib/gemini/prompts';
+import { useI18n } from '@/lib/i18n/context';
 
 type ExtractResponse = {
   source_id: string;
@@ -90,6 +91,7 @@ function buildBody(extract: ExtractResponse, sel: Selection) {
 }
 
 export default function UploadPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [status, setStatus] = useState<Status>('idle');
   const [extract, setExtract] = useState<ExtractResponse | null>(null);
@@ -113,12 +115,12 @@ export default function UploadPage() {
       setExtract(data);
       setSelection(defaultSelection(data.preview));
       setStatus('preview');
-      if (data.cached) toast.info('Этот скрин уже обрабатывался — показан закешированный результат');
+      if (data.cached) toast.info(t('upload_cached'));
     } catch (e) {
       setStatus('error');
-      const msg = e instanceof Error ? e.message : 'Неизвестная ошибка';
+      const msg = e instanceof Error ? e.message : t('upload_unknown_error');
       setError(msg);
-      toast.error('Не удалось извлечь', { description: msg });
+      toast.error(t('upload_extract_error'), { description: msg });
     }
   }
 
@@ -134,7 +136,7 @@ export default function UploadPage() {
     if (!extract || !selection) return;
     const body = buildBody(extract, selection);
     if (body.cards.length === 0 && body.grammar_notes.length === 0) {
-      toast.error('Выбери хотя бы один элемент');
+      toast.error(t('upload_select_min'));
       return;
     }
     setStatus('saving');
@@ -150,13 +152,13 @@ export default function UploadPage() {
         throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
       }
       const data = await res.json();
-      toast.success(`Сохранено: ${data.counts.cards} карт, ${data.counts.grammar} правил`);
+      toast.success(`${t('upload_saved')} ${data.counts.cards} ${t('upload_saved_cards')} ${data.counts.grammar} ${t('upload_saved_grammar')}`);
       router.push(`/cards?source_id=${extract.source_id}`);
     } catch (e) {
       setStatus('preview');
-      const msg = e instanceof Error ? e.message : 'Неизвестная ошибка';
+      const msg = e instanceof Error ? e.message : t('upload_unknown_error');
       setError(msg);
-      toast.error(`Не удалось сохранить: ${msg}`);
+      toast.error(`${t('upload_save_error')} ${msg}`);
     }
   }
 
@@ -165,9 +167,9 @@ export default function UploadPage() {
   return (
     <div className="flex flex-col gap-6 p-6 max-w-3xl">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight">Загрузить</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">{t('upload_title')}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Перетащи скрин страницы учебника — AI разберёт его на слова, фразы, грамматику и примеры.
+          {t('upload_subtitle')}
         </p>
       </header>
 
@@ -179,7 +181,7 @@ export default function UploadPage() {
         <Alert>
           <Loader2 className="size-4 animate-spin" />
           <AlertDescription>
-            Gemini обрабатывает изображение… (обычно 5–30 секунд, при перегрузке API — до минуты с автоповтором)
+            {t('upload_extracting')}
           </AlertDescription>
         </Alert>
       )}
@@ -194,14 +196,14 @@ export default function UploadPage() {
               onClick={() => lastFile && handleFile(lastFile)}
               disabled={!lastFile}
             >
-              Попробовать снова
+              {t('upload_retry')}
             </Button>
             <Button variant="outline" onClick={resetAll}>
-              Загрузить другой
+              {t('upload_another')}
             </Button>
           </div>
           <p className="text-sm text-muted-foreground">
-            Если ошибка 503 повторяется — модель Gemini сейчас перегружена. Подожди минуту-другую и попробуй снова. Затраты на API не списываются при ошибках.
+            {t('upload_error_hint')}
           </p>
         </div>
       )}
@@ -222,19 +224,19 @@ export default function UploadPage() {
               onClick={resetAll}
               disabled={status === 'saving'}
             >
-              Загрузить другой
+              {t('upload_another')}
             </Button>
             <div className="flex-1" />
             <Button onClick={handleSave} disabled={status === 'saving' || selectedCount === 0}>
               {status === 'saving' ? (
                 <>
                   <Loader2 className="size-4 animate-spin mr-2" />
-                  Сохраняю…
+                  {t('upload_saving')}
                 </>
               ) : (
                 <>
                   <Save className="size-4 mr-2" />
-                  Сохранить {selectedCount}
+                  {t('upload_save_btn')} {selectedCount}
                 </>
               )}
             </Button>

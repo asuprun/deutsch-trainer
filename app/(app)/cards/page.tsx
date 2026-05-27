@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { formatInterval } from '@/lib/format/intervals';
 import { CreateCardDialog } from '@/components/create-card-dialog';
+import { useI18n } from '@/lib/i18n/context';
 
 type CardKind = 'vocab' | 'phrase' | 'grammar_rule' | 'sentence';
 
@@ -40,14 +41,6 @@ type CardsResponse = {
 
 type EditDraft = { front: string; back: string; tags: string };
 
-const KIND_LABELS: Record<string, string> = {
-  all: 'Все',
-  vocab: 'Слова',
-  phrase: 'Фразы',
-  grammar_rule: 'Грамматика',
-  sentence: 'Предложения',
-};
-
 const KIND_BADGE_CLASS: Record<CardKind, string> = {
   vocab: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
   phrase: 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300',
@@ -58,6 +51,16 @@ const KIND_BADGE_CLASS: Record<CardKind, string> = {
 const LIMIT = 50;
 
 export default function CardsPage() {
+  const { t } = useI18n();
+
+  const KIND_LABELS: Record<string, string> = {
+    all: t('cards_kind_all'),
+    vocab: t('cards_kind_vocab'),
+    phrase: t('cards_kind_phrase'),
+    grammar_rule: t('cards_kind_grammar'),
+    sentence: t('cards_kind_sentence'),
+  };
+
   const [cards, setCards] = useState<Card[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -78,7 +81,7 @@ export default function CardsPage() {
   const [editDraft, setEditDraft] = useState<EditDraft>({ front: '', back: '', tags: '' });
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // Клавиша `/` фокусирует поиск
+  // `/` key focuses search
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== '/') return;
@@ -116,13 +119,13 @@ export default function CardsPage() {
       setCards(data.cards);
       setTotal(data.total);
     } catch (e) {
-      toast.error('Не удалось загрузить карты', {
+      toast.error(t('cards_load_error'), {
         description: e instanceof Error ? e.message : '',
       });
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, kind, tag]);
+  }, [page, debouncedSearch, kind, tag, t]);
 
   useEffect(() => {
     fetchCards();
@@ -154,7 +157,7 @@ export default function CardsPage() {
 
     if (
       (frontChanged || backChanged) &&
-      !window.confirm('Изменение слова сбросит прогресс FSRS. Продолжить?')
+      !window.confirm(t('cards_fsrs_confirm'))
     ) {
       return;
     }
@@ -163,7 +166,7 @@ export default function CardsPage() {
     try {
       const tags = editDraft.tags
         .split(',')
-        .map((t) => t.trim())
+        .map((tg) => tg.trim())
         .filter(Boolean);
 
       const res = await fetch(`/api/cards/${card.id}`, {
@@ -181,10 +184,10 @@ export default function CardsPage() {
       }
       const data = await res.json();
       setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, ...data.card } : c)));
-      toast.success('Карта сохранена');
+      toast.success(t('cards_saved'));
       setEditingId(null);
     } catch (e) {
-      toast.error('Не удалось сохранить', {
+      toast.error(t('cards_save_error'), {
         description: e instanceof Error ? e.message : '',
       });
     } finally {
@@ -201,11 +204,11 @@ export default function CardsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
       setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, ...data.card } : c)));
-      toast.success('Карта обогащена ✨', {
+      toast.success(t('cards_enrich_ok'), {
         description: `${data.card.word_type ?? ''} ${data.card.gender ?? ''} ${card.front}`.trim(),
       });
     } catch (e) {
-      toast.error('Ошибка обогащения', {
+      toast.error(t('cards_enrich_error'), {
         description: e instanceof Error ? e.message : '',
       });
     } finally {
@@ -218,13 +221,13 @@ export default function CardsPage() {
   async function handleEnrichBatch() {
     const unenriched = cards.filter((c) => !c.examples?.length);
     if (!unenriched.length) {
-      toast.info('Все карты на странице уже обогащены');
+      toast.info(t('cards_enrich_all_done'));
       return;
     }
     const n = unenriched.length;
     const estSec = Math.round(n * 4.5);
     const estMin = estSec >= 60 ? `~${Math.ceil(estSec / 60)} мин` : `~${estSec}с`;
-    toast.info(`Обогащаю ${n} карт… (${estMin})`, { duration: estSec * 1000 });
+    toast.info(`${t('cards_enriching')} ${n} (${estMin})`, { duration: estSec * 1000 });
     setEnrichingBatch(true);
     try {
       const res = await fetch('/api/cards/enrich-batch', {
@@ -239,10 +242,9 @@ export default function CardsPage() {
 
       if (data.succeeded === 0) {
         const firstErr = data.results?.find((r: BatchResult) => !r.ok)?.error;
-        toast.error(`Не удалось обогатить карты`, { description: firstErr ?? 'Проверь лимит Gemini API' });
+        toast.error(t('cards_enrich_batch_fail'), { description: firstErr ?? 'Проверь лимит Gemini API' });
       } else {
-        toast.success(`Обогащено ${data.succeeded} из ${data.total} карт ✨`);
-        // Показать детали по упавшим
+        toast.success(`${t('cards_enrich_ok')} ${data.succeeded} / ${data.total}`);
         const failed: BatchResult[] = (data.results ?? []).filter((r: BatchResult) => !r.ok);
         if (failed.length > 0) {
           const names = failed
@@ -250,7 +252,7 @@ export default function CardsPage() {
             .slice(0, 5)
             .join(', ');
           const uniqueErrors = [...new Set(failed.map((r) => r.error).filter(Boolean))];
-          toast.warning(`${failed.length} карт не удалось обогатить`, {
+          toast.warning(`${failed.length} ${t('cards_enrich_batch_fail')}`, {
             description: names + (failed.length > 5 ? '…' : '') + (uniqueErrors.length ? ` — ${uniqueErrors[0]}` : ''),
             duration: 12000,
           });
@@ -258,7 +260,7 @@ export default function CardsPage() {
       }
       fetchCards();
     } catch (e) {
-      toast.error('Ошибка пакетного обогащения', {
+      toast.error(t('cards_enrich_batch_error'), {
         description: e instanceof Error ? e.message : '',
       });
     } finally {
@@ -269,15 +271,15 @@ export default function CardsPage() {
   // ── Delete ───────────────────────────────────────────────────────────────────
 
   async function handleDelete(id: string) {
-    if (!window.confirm('Удалить карту? Это действие нельзя отменить.')) return;
+    if (!window.confirm(t('cards_delete_confirm'))) return;
     setDeletingId(id);
     try {
       const res = await fetch(`/api/cards/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      toast.success('Карта удалена');
+      toast.success(t('cards_deleted'));
       fetchCards();
     } catch (e) {
-      toast.error('Не удалось удалить карту', {
+      toast.error(t('cards_delete_error'), {
         description: e instanceof Error ? e.message : '',
       });
     } finally {
@@ -307,12 +309,14 @@ export default function CardsPage() {
     );
   }
 
+  const unenrichedCount = cards.filter((c) => !c.examples?.length).length;
+
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Карты</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Все флешкарты базы данных</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('cards_title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('cards_subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           {cards.length > 0 && (
@@ -328,13 +332,13 @@ export default function CardsPage() {
                 <Sparkles className="size-4 mr-1.5" />
               )}
               {enrichingBatch
-                ? 'Обогащаю…'
-                : `Обогатить${cards.filter((c) => !c.examples?.length).length ? ` (${cards.filter((c) => !c.examples?.length).length})` : ''}`}
+                ? t('cards_enriching')
+                : `${t('cards_enrich_batch')}${unenrichedCount ? ` (${unenrichedCount})` : ''}`}
             </Button>
           )}
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4 mr-1.5" />
-            Добавить
+            {t('cards_add')}
           </Button>
         </div>
       </header>
@@ -344,7 +348,7 @@ export default function CardsPage() {
         <div className="relative sm:max-w-xs">
           <Input
             ref={searchRef}
-            placeholder="Поиск по слову или переводу..."
+            placeholder={t('cards_search_placeholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className={cn('pr-8', search && 'pr-8')}
@@ -357,7 +361,7 @@ export default function CardsPage() {
                 searchRef.current?.focus();
               }}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Очистить поиск"
+              aria-label={t('cards_clear_search')}
             >
               <X className="size-4" />
             </button>
@@ -380,7 +384,7 @@ export default function CardsPage() {
       {/* Active tag chip */}
       {tag && (
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Тег:</span>
+          <span className="text-sm text-muted-foreground">{t('cards_tag_label')}</span>
           <Badge
             variant="secondary"
             className="flex items-center gap-1 cursor-pointer"
@@ -395,7 +399,7 @@ export default function CardsPage() {
       {/* Count */}
       {!loading && (
         <p className="text-sm text-muted-foreground">
-          {total === 0 ? 'Нет карт' : `Найдено: ${total}`}
+          {total === 0 ? t('cards_none') : `${t('cards_found')} ${total}`}
         </p>
       )}
 
@@ -408,10 +412,10 @@ export default function CardsPage() {
         </div>
       ) : cards.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
-          <p className="text-lg font-medium">Нет карт</p>
-          <p className="text-sm text-muted-foreground">Загрузи скрин учебника — приложение создаст карточки.</p>
+          <p className="text-lg font-medium">{t('cards_none')}</p>
+          <p className="text-sm text-muted-foreground">{t('cards_empty_subtitle')}</p>
           <Button asChild>
-            <Link href="/upload">Загрузить скрин</Link>
+            <Link href="/upload">{t('cards_upload_btn')}</Link>
           </Button>
         </div>
       ) : (
@@ -419,12 +423,12 @@ export default function CardsPage() {
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50">
               <tr>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Тип</th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">Слово</th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground hidden sm:table-cell">Перевод</th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground hidden md:table-cell">Теги</th>
-                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground hidden md:table-cell">До повтора</th>
-                <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">Действия</th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">{t('cards_col_type')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">{t('cards_col_word')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground hidden sm:table-cell">{t('cards_col_translation')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground hidden md:table-cell">{t('cards_col_tags')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground hidden md:table-cell">{t('cards_col_due')}</th>
+                <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">{t('cards_col_actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -452,17 +456,17 @@ export default function CardsPage() {
                     </td>
                     <td className="px-3 py-2.5 hidden md:table-cell">
                       <div className="flex flex-wrap gap-1">
-                        {card.tags?.map((t) => (
+                        {card.tags?.map((tg) => (
                           <Badge
-                            key={t}
+                            key={tg}
                             variant="outline"
                             className="text-xs cursor-pointer hover:bg-primary/20"
                             onClick={() => {
-                              setTag(t);
+                              setTag(tg);
                               setPage(0);
                             }}
                           >
-                            {t}
+                            {tg}
                           </Badge>
                         ))}
                       </div>
@@ -484,8 +488,8 @@ export default function CardsPage() {
                           )}
                           onClick={() => handleEnrich(card)}
                           disabled={enrichingId === card.id || enrichingBatch}
-                          aria-label="Обогатить с помощью ИИ"
-                          title={card.examples?.length ? 'Обогатить повторно' : 'Обогатить ✨'}
+                          aria-label={t('cards_enrich_ai')}
+                          title={card.examples?.length ? t('cards_enrich_again') : t('cards_enrich_new')}
                         >
                           {enrichingId === card.id ? (
                             <Loader2 className="size-3.5 animate-spin" />
@@ -502,7 +506,7 @@ export default function CardsPage() {
                             editingId === card.id && 'text-primary bg-primary/10',
                           )}
                           onClick={() => (editingId === card.id ? cancelEdit() : startEdit(card))}
-                          aria-label={editingId === card.id ? 'Закрыть' : 'Редактировать'}
+                          aria-label={editingId === card.id ? t('cards_edit_close') : t('cards_edit_open')}
                         >
                           {editingId === card.id ? (
                             <X className="size-3.5" />
@@ -517,7 +521,7 @@ export default function CardsPage() {
                           className="size-7 text-destructive hover:text-destructive"
                           onClick={() => handleDelete(card.id)}
                           disabled={deletingId === card.id}
-                          aria-label="Удалить"
+                          aria-label={t('cards_delete')}
                         >
                           {deletingId === card.id ? (
                             <Loader2 className="size-3.5 animate-spin" />
@@ -537,7 +541,7 @@ export default function CardsPage() {
                           <div className="grid gap-3 sm:grid-cols-2">
                             <div className="grid gap-1">
                               <label className="text-xs font-medium text-muted-foreground">
-                                Слово / фраза (немецкий)
+                                {t('cards_edit_label_front')}
                               </label>
                               <Input
                                 value={editDraft.front}
@@ -553,7 +557,7 @@ export default function CardsPage() {
                             </div>
                             <div className="grid gap-1">
                               <label className="text-xs font-medium text-muted-foreground">
-                                Перевод
+                                {t('cards_edit_label_back')}
                               </label>
                               <Input
                                 value={editDraft.back}
@@ -569,7 +573,7 @@ export default function CardsPage() {
                           </div>
                           <div className="grid gap-1">
                             <label className="text-xs font-medium text-muted-foreground">
-                              Теги (через запятую)
+                              {t('cards_edit_label_tags')}
                             </label>
                             <Input
                               value={editDraft.tags}
@@ -580,7 +584,7 @@ export default function CardsPage() {
                                 if (e.key === 'Enter') saveEdit(card);
                                 if (e.key === 'Escape') cancelEdit();
                               }}
-                              placeholder="A1, существительные, дом"
+                              placeholder={t('cards_edit_tags_placeholder')}
                               className="sm:max-w-xs"
                             />
                           </div>
@@ -595,10 +599,10 @@ export default function CardsPage() {
                               ) : (
                                 <Check className="size-3.5 mr-1.5" />
                               )}
-                              Сохранить
+                              {t('cards_edit_save')}
                             </Button>
                             <Button size="sm" variant="outline" onClick={cancelEdit}>
-                              Отмена
+                              {t('cards_edit_cancel')}
                             </Button>
                             <Button
                               size="sm"
@@ -607,7 +611,7 @@ export default function CardsPage() {
                               asChild
                             >
                               <Link href={`/cards/${card.id}`}>
-                                Расширенное редактирование
+                                {t('cards_edit_advanced')}
                                 <ExternalLink className="size-3" />
                               </Link>
                             </Button>
@@ -633,10 +637,10 @@ export default function CardsPage() {
             disabled={page === 0 || loading}
           >
             <ChevronLeft className="size-4 mr-1" />
-            Назад
+            {t('cards_prev')}
           </Button>
           <span className="text-sm text-muted-foreground">
-            Страница {page + 1} из {totalPages}
+            {t('cards_page_label')} {page + 1} {t('cards_page_of')} {totalPages}
           </span>
           <Button
             variant="outline"
@@ -644,7 +648,7 @@ export default function CardsPage() {
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={page >= totalPages - 1 || loading}
           >
-            Вперёд
+            {t('cards_next')}
             <ChevronRight className="size-4 ml-1" />
           </Button>
         </div>

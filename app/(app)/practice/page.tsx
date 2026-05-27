@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useTTS } from '@/lib/hooks/use-tts';
+import { useI18n } from '@/lib/i18n/context';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -20,23 +21,13 @@ type Message = {
   corrections?: Correction[];
 };
 
-// ─── Topic config ─────────────────────────────────────────────────────────────
-
-const TOPICS: Array<{ id: Topic; emoji: string; label: string; desc: string }> = [
-  { id: 'restaurant', emoji: '🍽️', label: 'Ресторан',   desc: 'Сделай заказ у официанта' },
-  { id: 'shopping',   emoji: '🛍️', label: 'Магазин',    desc: 'Купи что-нибудь в магазине одежды' },
-  { id: 'travel',     emoji: '🚂', label: 'Вокзал',     desc: 'Узнай расписание и купи билет' },
-  { id: 'meeting',    emoji: '👋', label: 'Знакомство',  desc: 'Познакомься с Максом из Берлина' },
-  { id: 'free',       emoji: '💬', label: 'Свободно',   desc: 'Любая тема на твой выбор' },
-];
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function CorrectionBlock({ corrections }: { corrections: Correction[] }) {
+function CorrectionBlock({ corrections, label }: { corrections: Correction[]; label: string }) {
   if (!corrections.length) return null;
   return (
     <div className="mt-2 rounded-md bg-amber-500/10 border border-amber-500/25 p-2.5 text-xs space-y-1.5">
-      <p className="font-medium text-amber-400">Исправления:</p>
+      <p className="font-medium text-amber-400">{label}</p>
       {corrections.map((c, i) => (
         <div key={i}>
           <span className="line-through text-muted-foreground">{c.original}</span>
@@ -49,7 +40,13 @@ function CorrectionBlock({ corrections }: { corrections: Correction[] }) {
   );
 }
 
-function ModelBubble({ msg, isLast }: { msg: Message; isLast: boolean }) {
+function ModelBubble({ msg, isLast, showTranslationLabel, listenLabel, correctionsLabel }: {
+  msg: Message;
+  isLast: boolean;
+  showTranslationLabel: string;
+  listenLabel: string;
+  correctionsLabel: string;
+}) {
   const { speak } = useTTS();
   const [showTranslation, setShowTranslation] = useState(false);
 
@@ -62,7 +59,7 @@ function ModelBubble({ msg, isLast }: { msg: Message; isLast: boolean }) {
         <div className="rounded-2xl rounded-tl-sm bg-muted px-4 py-3 text-sm">
           <p className="leading-relaxed">{msg.content}</p>
 
-          {/* Перевод */}
+          {/* Translation */}
           {msg.translation && (
             <div className="mt-2 border-t border-border/50 pt-2">
               {showTranslation ? (
@@ -72,14 +69,14 @@ function ModelBubble({ msg, isLast }: { msg: Message; isLast: boolean }) {
                   onClick={() => setShowTranslation(true)}
                   className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
                 >
-                  показать перевод
+                  {showTranslationLabel}
                 </button>
               )}
             </div>
           )}
         </div>
 
-        <CorrectionBlock corrections={msg.corrections ?? []} />
+        <CorrectionBlock corrections={msg.corrections ?? []} label={correctionsLabel} />
 
         {/* TTS */}
         <button
@@ -87,7 +84,7 @@ function ModelBubble({ msg, isLast }: { msg: Message; isLast: boolean }) {
           className="self-start flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-1"
         >
           <Volume2 className="size-3" />
-          <span>прослушать</span>
+          <span>{listenLabel}</span>
         </button>
       </div>
     </div>
@@ -107,6 +104,16 @@ function UserBubble({ msg }: { msg: Message }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function PracticePage() {
+  const { t } = useI18n();
+
+  const TOPICS: Array<{ id: Topic; emoji: string; label: string; desc: string }> = [
+    { id: 'restaurant', emoji: '🍽️', label: t('practice_topic_restaurant_label'), desc: t('practice_topic_restaurant_desc') },
+    { id: 'shopping',   emoji: '🛍️', label: t('practice_topic_shopping_label'),   desc: t('practice_topic_shopping_desc') },
+    { id: 'travel',     emoji: '🚂', label: t('practice_topic_travel_label'),     desc: t('practice_topic_travel_desc') },
+    { id: 'meeting',    emoji: '👋', label: t('practice_topic_meeting_label'),    desc: t('practice_topic_meeting_desc') },
+    { id: 'free',       emoji: '💬', label: t('practice_topic_free_label'),       desc: t('practice_topic_free_desc') },
+  ];
+
   const [topic, setTopic]       = useState<Topic | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput]       = useState('');
@@ -114,25 +121,25 @@ export default function PracticePage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLTextAreaElement>(null);
 
-  // Автоскролл вниз
+  // Auto-scroll down
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  async function startChat(t: Topic) {
-    setTopic(t);
+  async function startChat(tp: Topic) {
+    setTopic(tp);
     setMessages([]);
     setLoading(true);
     try {
       const res  = await fetch('/api/practice/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: t, messages: [] }),
+        body: JSON.stringify({ topic: tp, messages: [] }),
       });
       const data = await res.json();
       setMessages([{ role: 'model', content: data.reply, translation: data.translation, corrections: [] }]);
     } catch {
-      setMessages([{ role: 'model', content: 'Не удалось начать чат. Попробуй ещё раз.', corrections: [] }]);
+      setMessages([{ role: 'model', content: t('practice_start_error'), corrections: [] }]);
     } finally {
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 100);
@@ -168,7 +175,7 @@ export default function PracticePage() {
       const msg = e instanceof Error ? e.message : String(e);
       setMessages((prev) => [
         ...prev,
-        { role: 'model', content: `⚠️ Ошибка: ${msg}`, corrections: [] },
+        { role: 'model', content: `⚠️ ${msg}`, corrections: [] },
       ]);
     } finally {
       setLoading(false);
@@ -183,55 +190,55 @@ export default function PracticePage() {
     }
   }
 
-  // ── Экран выбора темы ───────────────────────────────────────────────────────
+  // ── Topic selection screen ──────────────────────────────────────────────────
   if (!topic) {
     return (
       <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-2xl">
         <header>
-          <h1 className="text-2xl font-semibold tracking-tight">Чат-практика</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('practice_title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Выбери тему — Gemini сыграет роль собеседника и будет исправлять твои ошибки
+            {t('practice_subtitle')}
           </p>
         </header>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          {TOPICS.map((t) => (
+          {TOPICS.map((tp) => (
             <button
-              key={t.id}
-              onClick={() => startChat(t.id)}
+              key={tp.id}
+              onClick={() => startChat(tp.id)}
               className="flex items-start gap-3 rounded-xl border p-4 text-left transition-colors hover:bg-muted/60 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              <span className="text-2xl">{t.emoji}</span>
+              <span className="text-2xl">{tp.emoji}</span>
               <div>
-                <p className="font-medium">{t.label}</p>
-                <p className="text-sm text-muted-foreground mt-0.5">{t.desc}</p>
+                <p className="font-medium">{tp.label}</p>
+                <p className="text-sm text-muted-foreground mt-0.5">{tp.desc}</p>
               </div>
             </button>
           ))}
         </div>
 
         <div className="rounded-lg bg-muted/30 border p-4 text-sm text-muted-foreground space-y-1">
-          <p className="font-medium text-foreground">Как это работает:</p>
-          <p>• Gemini ведёт диалог на немецком уровня A2-B1</p>
-          <p>• После каждого твоего сообщения — исправление ошибок</p>
-          <p>• Перевод ответа скрыт по умолчанию — попробуй угадать сам</p>
-          <p>• Кнопка 🔊 озвучит любую фразу голосом de-DE</p>
+          <p className="font-medium text-foreground">{t('practice_how_title')}</p>
+          <p>{t('practice_how_1')}</p>
+          <p>{t('practice_how_2')}</p>
+          <p>{t('practice_how_3')}</p>
+          <p>{t('practice_how_4')}</p>
         </div>
       </div>
     );
   }
 
-  // ── Чат ────────────────────────────────────────────────────────────────────
-  const topicConfig = TOPICS.find((t) => t.id === topic)!;
+  // ── Chat ─────────────────────────────────────────────────────────────────────
+  const topicConfig = TOPICS.find((tp) => tp.id === topic)!;
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] md:h-screen">
-      {/* Хедер */}
+      {/* Header */}
       <header className="flex items-center gap-3 border-b px-4 py-3 shrink-0">
         <span className="text-xl">{topicConfig.emoji}</span>
         <div className="flex-1">
           <p className="font-medium text-sm">{topicConfig.label}</p>
-          <p className="text-xs text-muted-foreground">Чат-практика · A2-B1</p>
+          <p className="text-xs text-muted-foreground">{t('practice_chat_label')}</p>
         </div>
         <Button
           variant="ghost"
@@ -240,21 +247,28 @@ export default function PracticePage() {
           className="text-muted-foreground"
         >
           <RotateCw className="size-4 mr-1.5" />
-          Сменить тему
+          {t('practice_change_topic')}
         </Button>
       </header>
 
-      {/* Сообщения */}
+      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {messages.map((msg, i) =>
           msg.role === 'model' ? (
-            <ModelBubble key={i} msg={msg} isLast={i === messages.length - 1} />
+            <ModelBubble
+              key={i}
+              msg={msg}
+              isLast={i === messages.length - 1}
+              showTranslationLabel={t('practice_show_translation')}
+              listenLabel={t('practice_listen')}
+              correctionsLabel={t('practice_corrections')}
+            />
           ) : (
             <UserBubble key={i} msg={msg} />
           ),
         )}
 
-        {/* Индикатор загрузки */}
+        {/* Loading indicator */}
         {loading && (
           <div className="flex items-start gap-2">
             <div className="shrink-0 size-8 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold text-white">
@@ -277,7 +291,7 @@ export default function PracticePage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Поле ввода */}
+      {/* Input area */}
       <div className="shrink-0 border-t bg-background/95 backdrop-blur px-4 py-3">
         <div className="flex gap-2 items-end max-w-3xl mx-auto">
           <textarea
@@ -285,7 +299,7 @@ export default function PracticePage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Напиши по-немецки… (Enter — отправить, Shift+Enter — новая строка)"
+            placeholder={t('practice_placeholder')}
             rows={1}
             disabled={loading}
             className={cn(
@@ -296,9 +310,9 @@ export default function PracticePage() {
             )}
             style={{ height: 'auto' }}
             onInput={(e) => {
-              const t = e.currentTarget;
-              t.style.height = 'auto';
-              t.style.height = Math.min(t.scrollHeight, 128) + 'px';
+              const tgt = e.currentTarget;
+              tgt.style.height = 'auto';
+              tgt.style.height = Math.min(tgt.scrollHeight, 128) + 'px';
             }}
           />
           <Button
@@ -311,7 +325,7 @@ export default function PracticePage() {
           </Button>
         </div>
         <p className="text-center text-xs text-muted-foreground mt-1.5 hidden sm:block">
-          Пиши на немецком — Gemini исправит ошибки и ответит
+          {t('practice_footer_hint')}
         </p>
       </div>
     </div>

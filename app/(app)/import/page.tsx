@@ -7,6 +7,7 @@ import { Upload, FileText, CheckCircle2, Loader2, AlertCircle } from 'lucide-rea
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/context';
 
 type PreviewRow = { front: string; back: string; tags: string[] };
 
@@ -19,6 +20,7 @@ type Preview = {
 type Stage = 'idle' | 'previewing' | 'preview' | 'importing' | 'done';
 
 export default function ImportPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -26,6 +28,12 @@ export default function ImportPage() {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [imported, setImported] = useState(0);
   const [dragOver, setDragOver] = useState(false);
+
+  const sepLabel: Record<string, string> = {
+    tab: t('import_sep_tab'),
+    ',': t('import_sep_comma'),
+    ';': t('import_sep_semicolon'),
+  };
 
   async function handleFile(f: File) {
     setFile(f);
@@ -39,7 +47,7 @@ export default function ImportPage() {
       setPreview(data);
       setStage('preview');
     } catch (e) {
-      toast.error('Не удалось прочитать файл', {
+      toast.error(t('import_read_error'), {
         description: e instanceof Error ? e.message : '',
       });
       setStage('idle');
@@ -59,7 +67,7 @@ export default function ImportPage() {
       setImported(data.imported);
       setStage('done');
     } catch (e) {
-      toast.error('Ошибка импорта', {
+      toast.error(t('import_error'), {
         description: e instanceof Error ? e.message : '',
       });
       setStage('preview');
@@ -73,26 +81,27 @@ export default function ImportPage() {
     if (f) handleFile(f);
   }
 
-  const sepLabel: Record<string, string> = { tab: 'табуляция (TSV)', ',': 'запятая (CSV)', ';': 'точка с запятой' };
-
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-3xl">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Импорт из Anki</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('import_title')}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Экспортируй колоду из Anki: <strong>File → Export → Notes in Plain Text (.txt)</strong>,
-          убери галочку «HTML», нажми Export. Затем загрузи файл сюда.
+          {t('import_subtitle_html').split('<strong>').map((chunk, i) => {
+            if (i === 0) return chunk;
+            const [bold, rest] = chunk.split('</strong>');
+            return <span key={i}><strong>{bold}</strong>{rest}</span>;
+          })}
         </p>
       </header>
 
-      {/* Инструкция */}
+      {/* Format hint */}
       <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-1">
-        <p className="font-medium">Ожидаемый формат файла:</p>
+        <p className="font-medium">{t('import_format_title')}</p>
         <pre className="mt-2 text-xs text-muted-foreground font-mono bg-background rounded p-2 overflow-x-auto">{`Hund\tсобака\tnoun::A1
 gehen\tидти\tverb
 auf jeden Fall\tв любом случае`}</pre>
         <p className="text-muted-foreground pt-1">
-          Колонки: <strong>Немецкий</strong> | <strong>Перевод</strong> | Теги (необязательно, через ::)
+          {t('import_format_hint')} <strong>{t('import_format_col1')}</strong> | <strong>{t('import_format_col2')}</strong> | {t('import_format_col3')}
         </p>
       </div>
 
@@ -110,8 +119,8 @@ auf jeden Fall\tв любом случае`}</pre>
         >
           <FileText className="size-10 text-muted-foreground" />
           <div className="text-center">
-            <p className="font-medium">Перетащи файл или нажми для выбора</p>
-            <p className="text-sm text-muted-foreground mt-1">.txt, .tsv, .csv</p>
+            <p className="font-medium">{t('import_drop_label')}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t('import_drop_hint')}</p>
           </div>
           <input
             ref={inputRef}
@@ -127,7 +136,7 @@ auf jeden Fall\tв любом случае`}</pre>
       {stage === 'previewing' && (
         <div className="flex items-center gap-3 text-muted-foreground">
           <Loader2 className="size-5 animate-spin" />
-          Читаю файл…
+          {t('import_reading')}
         </div>
       )}
 
@@ -135,8 +144,8 @@ auf jeden Fall\tв любом случае`}</pre>
       {stage === 'preview' && preview && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3 flex-wrap">
-            <Badge variant="outline">{preview.total} карт</Badge>
-            <Badge variant="outline">Разделитель: {sepLabel[preview.separator] ?? preview.separator}</Badge>
+            <Badge variant="outline">{preview.total} {t('import_cards_count')}</Badge>
+            <Badge variant="outline">{t('import_sep_label')} {sepLabel[preview.separator] ?? preview.separator}</Badge>
             <span className="text-sm text-muted-foreground">{file?.name}</span>
           </div>
 
@@ -144,9 +153,9 @@ auf jeden Fall\tв любом случае`}</pre>
             <table className="w-full text-sm">
               <thead className="bg-muted/50 border-b">
                 <tr>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Немецкий</th>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Перевод</th>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground hidden sm:table-cell">Теги</th>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t('import_col_german')}</th>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t('import_col_translation')}</th>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground hidden sm:table-cell">{t('import_col_tags')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -155,8 +164,8 @@ auf jeden Fall\tв любом случае`}</pre>
                     <td className="px-3 py-2 font-medium">{row.front}</td>
                     <td className="px-3 py-2 text-muted-foreground">{row.back}</td>
                     <td className="px-3 py-2 hidden sm:table-cell">
-                      {row.tags.map((t) => (
-                        <Badge key={t} variant="outline" className="text-xs mr-1">{t}</Badge>
+                      {row.tags.map((tg) => (
+                        <Badge key={tg} variant="outline" className="text-xs mr-1">{tg}</Badge>
                       ))}
                     </td>
                   </tr>
@@ -165,7 +174,7 @@ auf jeden Fall\tв любом случае`}</pre>
             </table>
             {preview.total > 10 && (
               <p className="px-3 py-2 text-xs text-muted-foreground border-t">
-                …и ещё {preview.total - 10} карт
+                {t('import_more_rows')} {preview.total - 10} {t('import_cards_count')}
               </p>
             )}
           </div>
@@ -173,10 +182,10 @@ auf jeden Fall\tв любом случае`}</pre>
           <div className="flex gap-3">
             <Button onClick={handleImport}>
               <Upload className="size-4 mr-2" />
-              Импортировать {preview.total} карт
+              {t('import_do_import')} {preview.total} {t('import_cards_count')}
             </Button>
             <Button variant="outline" onClick={() => { setStage('idle'); setFile(null); setPreview(null); }}>
-              Выбрать другой файл
+              {t('import_choose_other')}
             </Button>
           </div>
         </div>
@@ -186,7 +195,7 @@ auf jeden Fall\tв любом случае`}</pre>
       {stage === 'importing' && (
         <div className="flex items-center gap-3 text-muted-foreground">
           <Loader2 className="size-5 animate-spin" />
-          Импортирую карты…
+          {t('import_importing')}
         </div>
       )}
 
@@ -195,13 +204,13 @@ auf jeden Fall\tв любом случае`}</pre>
         <div className="flex flex-col items-center gap-4 py-10 text-center">
           <CheckCircle2 className="size-12 text-emerald-500" />
           <div>
-            <p className="text-xl font-semibold">Импорт завершён</p>
-            <p className="text-muted-foreground mt-1">Добавлено карт: {imported}</p>
+            <p className="text-xl font-semibold">{t('import_done_title')}</p>
+            <p className="text-muted-foreground mt-1">{t('import_done_added')} {imported}</p>
           </div>
           <div className="flex gap-3 mt-2">
-            <Button onClick={() => router.push('/cards')}>Смотреть карты</Button>
+            <Button onClick={() => router.push('/cards')}>{t('import_view_cards')}</Button>
             <Button variant="outline" onClick={() => { setStage('idle'); setFile(null); setPreview(null); setImported(0); }}>
-              Импортировать ещё
+              {t('import_import_more')}
             </Button>
           </div>
         </div>
@@ -212,8 +221,11 @@ auf jeden Fall\tв любом случае`}</pre>
         <div className="flex gap-2 text-sm text-muted-foreground items-start rounded-md bg-muted/30 p-3">
           <AlertCircle className="size-4 mt-0.5 shrink-0" />
           <p>
-            Импортированные карты создаются как <strong>новые</strong> — прогресс повторений из Anki не переносится.
-            Все карты будут в очереди на повторение с сегодняшнего дня.
+            {t('import_fsrs_note').split('<strong>').map((chunk, i) => {
+              if (i === 0) return chunk;
+              const [bold, rest] = chunk.split('</strong>');
+              return <span key={i}><strong>{bold}</strong>{rest}</span>;
+            })}
           </p>
         </div>
       )}

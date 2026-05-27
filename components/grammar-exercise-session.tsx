@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/context';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,6 +29,7 @@ type Props = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
+  const { t } = useI18n();
   const [status, setStatus] = useState<Status>('loading');
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [idx, setIdx] = useState(0);
@@ -53,7 +55,7 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
           throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
         }
         const data = await res.json();
-        if (!data.exercises?.length) throw new Error('Нет упражнений');
+        if (!data.exercises?.length) throw new Error('No exercises');
         if (!cancelled) {
           setExercises(data.exercises);
           setIdx(0);
@@ -111,7 +113,7 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
     return (
       <div className="flex flex-col items-center gap-4 py-20">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Генерирую упражнения…</p>
+        <p className="text-sm text-muted-foreground">{t('gramex_generating')}</p>
       </div>
     );
   }
@@ -121,15 +123,15 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
   if (status === 'error') {
     return (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
-        <p className="text-destructive">Не удалось сгенерировать упражнения</p>
+        <p className="text-destructive">{t('gramex_error')}</p>
         <div className="flex gap-2">
           <Button onClick={onBack} variant="outline">
             <ChevronLeft className="size-4 mr-1" />
-            Назад
+            {t('gramex_back')}
           </Button>
           <Button onClick={() => { setStatus('loading'); }}>
             <RotateCw className="size-4 mr-1.5" />
-            Повторить
+            {t('gramex_retry')}
           </Button>
         </div>
       </div>
@@ -147,16 +149,16 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
           <p className="text-3xl font-bold tabular-nums">
             {score} / {exercises.length}
           </p>
-          <p className="text-muted-foreground mt-1">правильных ответов</p>
+          <p className="text-muted-foreground mt-1">{t('gramex_correct_answers')}</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={restart}>
             <RotateCw className="size-4 mr-1.5" />
-            Ещё раз
+            {t('gramex_again')}
           </Button>
           <Button onClick={onBack} variant="outline">
             <ChevronLeft className="size-4 mr-1" />
-            К темам
+            {t('gramex_back_to_topics')}
           </Button>
         </div>
       </div>
@@ -235,11 +237,11 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
           >
             {checkState === 'correct' ? (
               <>
-                <Check className="size-4" /> Верно!
+                <Check className="size-4" /> {t('gramex_correct')}
               </>
             ) : (
               <>
-                <X className="size-4" /> Неверно
+                <X className="size-4" /> {t('gramex_wrong')}
               </>
             )}
           </div>
@@ -257,19 +259,19 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
             onKeyDown={(e) => {
               if (e.key === 'Enter') check();
             }}
-            placeholder="Вставь пропущенное слово…"
+            placeholder={t('gramex_placeholder')}
             className="text-base"
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
           />
           <Button onClick={check} disabled={!input.trim()}>
-            Проверить
+            {t('gramex_check')}
           </Button>
         </div>
       ) : (
         <Button onClick={next} className="self-end">
-          {idx + 1 < exercises.length ? 'Далее →' : 'Завершить'}
+          {idx + 1 < exercises.length ? t('gramex_next') : t('gramex_finish')}
         </Button>
       )}
     </div>

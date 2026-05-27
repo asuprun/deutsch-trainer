@@ -5,24 +5,12 @@ import { TTSButton } from '@/components/tts-button';
 import { Badge } from '@/components/ui/badge';
 import { useTTS } from '@/lib/hooks/use-tts';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/context';
 
 const GENDER_COLOR: Record<string, string> = {
   der: 'text-blue-400',
   die: 'text-pink-400',
   das: 'text-emerald-400',
-};
-
-const WORD_TYPE_LABEL: Record<string, string> = {
-  noun: 'сущ.',
-  verb: 'глаг.',
-  adj: 'прил.',
-  adv: 'нар.',
-  prep: 'предл.',
-  conj: 'союз',
-  pron: 'мест.',
-  num: 'числ.',
-  interj: 'межд.',
-  other: '',
 };
 
 export type ReviewCardData = {
@@ -46,12 +34,27 @@ type Props = {
 };
 
 export function ReviewCard({ card, flipped, autoTts = true }: Props) {
+  const { t } = useI18n();
   const { speak } = useTTS();
+
+  // Word type abbreviation labels
+  const WORD_TYPE_LABEL: Record<string, string> = {
+    noun: t('revcard_examples') === 'Примеры' ? 'сущ.' : (t('revcard_examples') === 'Examples' ? 'n.' : 'Subst.'),
+    verb: t('revcard_examples') === 'Примеры' ? 'глаг.' : (t('revcard_examples') === 'Examples' ? 'v.' : 'Vb.'),
+    adj: t('revcard_examples') === 'Примеры' ? 'прил.' : (t('revcard_examples') === 'Examples' ? 'adj.' : 'Adj.'),
+    adv: t('revcard_examples') === 'Примеры' ? 'нар.' : (t('revcard_examples') === 'Examples' ? 'adv.' : 'Adv.'),
+    prep: t('revcard_examples') === 'Примеры' ? 'предл.' : (t('revcard_examples') === 'Examples' ? 'prep.' : 'Präp.'),
+    conj: t('revcard_examples') === 'Примеры' ? 'союз' : (t('revcard_examples') === 'Examples' ? 'conj.' : 'Konj.'),
+    pron: t('revcard_examples') === 'Примеры' ? 'мест.' : (t('revcard_examples') === 'Examples' ? 'pron.' : 'Pron.'),
+    num: t('revcard_examples') === 'Примеры' ? 'числ.' : (t('revcard_examples') === 'Examples' ? 'num.' : 'Num.'),
+    interj: t('revcard_examples') === 'Примеры' ? 'межд.' : (t('revcard_examples') === 'Examples' ? 'interj.' : 'Interj.'),
+    other: '',
+  };
 
   useEffect(() => {
     if (flipped && autoTts && card.front) {
-      const t = setTimeout(() => speak(card.front), 150);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => speak(card.front), 150);
+      return () => clearTimeout(timer);
     }
   }, [flipped, card.id, card.front, speak, autoTts]);
 
@@ -94,10 +97,10 @@ export function ReviewCard({ card, flipped, autoTts = true }: Props) {
 
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               {wordTypeLabel && <span>{wordTypeLabel}</span>}
-              {card.plural && <span>· мн. {card.plural}</span>}
-              {card.tags?.map((t) => (
-                <Badge key={t} variant="outline" className="text-xs">
-                  {t}
+              {card.plural && <span>· {t('revcard_plural')} {card.plural}</span>}
+              {card.tags?.map((tag) => (
+                <Badge key={tag} variant="outline" className="text-xs">
+                  {tag}
                 </Badge>
               ))}
             </div>
@@ -119,10 +122,10 @@ export function ReviewCard({ card, flipped, autoTts = true }: Props) {
 
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               {wordTypeLabel && <span>{wordTypeLabel}</span>}
-              {card.plural && <span>· мн. {card.plural}</span>}
-              {card.tags?.map((t) => (
-                <Badge key={t} variant="outline" className="text-xs">
-                  {t}
+              {card.plural && <span>· {t('revcard_plural')} {card.plural}</span>}
+              {card.tags?.map((tag) => (
+                <Badge key={tag} variant="outline" className="text-xs">
+                  {tag}
                 </Badge>
               ))}
             </div>
@@ -134,7 +137,7 @@ export function ReviewCard({ card, flipped, autoTts = true }: Props) {
                 <div className="mt-3 text-sm text-muted-foreground border-t pt-3">
                   {forms.infinitiv} · {forms.praeteritum} · {forms.partizip_2}
                   {forms.hilfsverb && ` · ${forms.hilfsverb}`}
-                  {forms.trennbar && ' · отдел.'}
+                  {forms.trennbar && ` · ${t('revcard_verb_sep')}`}
                 </div>
               )}
               {forms?.komparativ && (
@@ -146,7 +149,7 @@ export function ReviewCard({ card, flipped, autoTts = true }: Props) {
 
             {card.examples && card.examples.length > 0 && (
               <div className="w-full max-w-xl space-y-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Примеры</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('revcard_examples')}</p>
                 {card.examples.map((ex, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <TTSButton text={ex.de} size="icon" className="size-7 mt-0.5 shrink-0" />

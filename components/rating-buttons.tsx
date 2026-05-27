@@ -58,7 +58,7 @@ export function RatingButtons({ intervals, onRate, disabled, suggestedGrade }: P
             </div>
             <span className="text-xs opacity-90">{intervalText}</span>
             {suggested && (
-              <span className="text-[10px] opacity-75">авто</span>
+              <span className="text-[10px] opacity-75">{t('rating_auto')}</span>
             )}
           </Button>
         );

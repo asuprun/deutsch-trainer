@@ -3,6 +3,7 @@ import { BookOpen, Brain, Flame } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
+import { DashboardClient } from './dashboard-client';
 
 async function loadStats() {
   try {
@@ -49,88 +50,5 @@ function calcStreak(logs: { reviewed_at: string }[]): number {
 
 export default async function DashboardPage() {
   const stats = await loadStats();
-
-  return (
-    <div className="flex flex-col gap-6 p-6">
-      <header>
-        <h1 className="text-3xl font-semibold tracking-tight">Главная</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {stats.total_cards === 0
-            ? 'Загрузи скрин учебника — приложение создаст первые карточки.'
-            : 'Ежедневные показатели тренировки.'}
-        </p>
-      </header>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {/* К повторению сегодня */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">К повторению сегодня</CardTitle>
-            <Brain className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold tabular-nums">{stats.due_today}</div>
-            <CardDescription className="mt-1">
-              {stats.due_today === 0 ? 'Всё повторено — отличная работа!' : 'карточек ждут повторения'}
-            </CardDescription>
-            {stats.due_today > 0 && (
-              <Button asChild size="sm" className="mt-3">
-                <Link href="/review">Начать тренировку</Link>
-              </Button>
-        )}
-          </CardContent>
-        </Card>
-
-        {/* Всего карт */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Всего карт</CardTitle>
-            <BookOpen className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold tabular-nums">{stats.total_cards}</div>
-            <CardDescription className="mt-1">
-              {stats.total_cards === 0 ? (
-                <>
-                  <Link href="/upload" className="underline underline-offset-2 hover:text-foreground">
-                    Загрузи скрин
-                  </Link>{' '}
-                  чтобы создать первые карты
-                </>
-              ) : (
-                'карточек в базе'
-              )}
-            </CardDescription>
-          </CardContent>
-        </Card>
-
-        {/* Streak */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Streak</CardTitle>
-            <Flame className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold tabular-nums">
-              {stats.streak > 0 ? (
-                <>
-                  {stats.streak}
-                  <span className="ml-1 text-base font-normal text-muted-foreground">
-                    {stats.streak === 1 ? 'день' : stats.streak < 5 ? 'дня' : 'дней'}
-                  </span>
-                </>
-              ) : (
-                '—'
-              )}
-            </div>
-            <CardDescription className="mt-1">
-              {stats.streak === 0
-                ? 'Начни тренировку, чтобы запустить серию'
-                : 'дней подряд без пропусков'}
-            </CardDescription>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
+  return <DashboardClient stats={stats} />;
 }

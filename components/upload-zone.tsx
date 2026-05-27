@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/context';
 
 const ACCEPT = 'image/jpeg,image/png,image/webp';
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export function UploadZone({ onFile, disabled }: Props) {
+  const { t } = useI18n();
   const [dragging, setDragging] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -29,11 +31,11 @@ export function UploadZone({ onFile, disabled }: Props) {
     (file: File | null | undefined) => {
       if (!file) return;
       if (!ACCEPT.split(',').includes(file.type)) {
-        setError(`Поддерживаются только JPEG, PNG, WebP (получен ${file.type || '?'})`);
+        setError(`${t('uploadzone_error_type')} ${file.type || '?'})`);
         return;
       }
       if (file.size > MAX_BYTES) {
-        setError(`Файл слишком большой: ${(file.size / 1024 / 1024).toFixed(1)} MB (макс ${MAX_BYTES / 1024 / 1024} MB)`);
+        setError(`${t('uploadzone_error_size_prefix')} ${(file.size / 1024 / 1024).toFixed(1)} ${t('uploadzone_error_size_suffix')} ${MAX_BYTES / 1024 / 1024} MB)`);
         return;
       }
       setError(null);
@@ -41,7 +43,7 @@ export function UploadZone({ onFile, disabled }: Props) {
       setPreview(URL.createObjectURL(file));
       onFile(file);
     },
-    [onFile, preview],
+    [onFile, preview, t],
   );
 
   useEffect(() => {
@@ -86,7 +88,7 @@ export function UploadZone({ onFile, disabled }: Props) {
     return (
       <div className="relative overflow-hidden rounded-lg border">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={preview} alt="Загруженный скриншот" className="w-full max-h-[60vh] object-contain bg-muted" />
+        <img src={preview} alt={t('uploadzone_drag_label')} className="w-full max-h-[60vh] object-contain bg-muted" />
         {!disabled && (
           <Button
             variant="secondary"
@@ -95,7 +97,7 @@ export function UploadZone({ onFile, disabled }: Props) {
             className="absolute top-2 right-2"
           >
             <X className="size-4 mr-1" />
-            Сбросить
+            {t('uploadzone_reset')}
           </Button>
         )}
       </div>
@@ -121,9 +123,9 @@ export function UploadZone({ onFile, disabled }: Props) {
     >
       <Upload className="size-10 text-muted-foreground" />
       <div className="text-center">
-        <p className="font-medium">Перетащи скриншот сюда</p>
-        <p className="mt-1 text-sm text-muted-foreground">или нажми, чтобы выбрать файл · Ctrl+V — вставить из буфера</p>
-        <p className="mt-2 text-xs text-muted-foreground">JPEG / PNG / WebP, до 8 MB</p>
+        <p className="font-medium">{t('uploadzone_drag_label')}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t('uploadzone_click_hint')}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{t('uploadzone_size_hint')}</p>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <input

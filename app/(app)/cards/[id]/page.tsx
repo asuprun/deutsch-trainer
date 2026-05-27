@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useI18n } from '@/lib/i18n/context';
 
 type Example = { de: string; ru: string };
 
@@ -34,6 +35,7 @@ type PageProps = { params: Promise<{ id: string }> };
 
 export default function CardEditPage({ params }: PageProps) {
   const { id } = use(params);
+  const { t } = useI18n();
   const router = useRouter();
 
   const [card, setCard] = useState<Card | null>(null);
@@ -69,7 +71,7 @@ export default function CardEditPage({ params }: PageProps) {
         setTagsInput((c.tags ?? []).join(', '));
         setExamples(c.examples ?? []);
       } catch (e) {
-        toast.error('Не удалось загрузить карту', {
+        toast.error(t('card_load_error'), {
           description: e instanceof Error ? e.message : '',
         });
       } finally {
@@ -77,7 +79,7 @@ export default function CardEditPage({ params }: PageProps) {
       }
     }
     load();
-  }, [id]);
+  }, [id, t]);
 
   async function handleSave() {
     if (!card) return;
@@ -85,7 +87,7 @@ export default function CardEditPage({ params }: PageProps) {
     const frontChanged = front !== card.front;
     const backChanged = back !== card.back;
 
-    if ((frontChanged || backChanged) && !window.confirm('Изменение слова сбросит прогресс FSRS. Продолжить?')) {
+    if ((frontChanged || backChanged) && !window.confirm(t('cards_fsrs_confirm'))) {
       return;
     }
 
@@ -93,7 +95,7 @@ export default function CardEditPage({ params }: PageProps) {
     try {
       const tags = tagsInput
         .split(',')
-        .map((t) => t.trim())
+        .map((tg) => tg.trim())
         .filter(Boolean);
 
       const body: Record<string, unknown> = {
@@ -118,9 +120,9 @@ export default function CardEditPage({ params }: PageProps) {
       }
       const data = await res.json();
       setCard(data.card);
-      toast.success('Карта сохранена');
+      toast.success(t('card_saved'));
     } catch (e) {
-      toast.error('Не удалось сохранить', {
+      toast.error(t('card_save_error'), {
         description: e instanceof Error ? e.message : '',
       });
     } finally {
@@ -139,9 +141,9 @@ export default function CardEditPage({ params }: PageProps) {
       const data = await res.json();
       const newExamples: Example[] = data.card?.examples ?? [];
       setExamples(newExamples);
-      toast.success('Примеры сгенерированы');
+      toast.success(t('card_generate_ok'));
     } catch (e) {
-      toast.error('Ошибка генерации', {
+      toast.error(t('card_generate_error'), {
         description: e instanceof Error ? e.message : '',
       });
     } finally {
@@ -176,9 +178,9 @@ export default function CardEditPage({ params }: PageProps) {
   if (!card) {
     return (
       <div className="p-6">
-        <p className="text-destructive">Карта не найдена.</p>
+        <p className="text-destructive">{t('card_not_found')}</p>
         <Button variant="outline" className="mt-4" onClick={() => router.push('/cards')}>
-          ← Назад к картам
+          ← {t('card_back_to_cards')}
         </Button>
       </div>
     );
@@ -188,90 +190,90 @@ export default function CardEditPage({ params }: PageProps) {
     <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-2xl">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/cards" aria-label="Назад к картам">
+          <Link href="/cards" aria-label={t('card_back_to_cards')}>
             <ArrowLeft className="size-4" />
           </Link>
         </Button>
-        <h1 className="text-xl font-semibold">Редактировать карту</h1>
+        <h1 className="text-xl font-semibold">{t('card_title')}</h1>
       </div>
 
       <div className="flex flex-col gap-4">
         {/* front */}
         <div className="grid gap-1.5">
-          <Label htmlFor="front">Слово / фраза (немецкий)</Label>
+          <Label htmlFor="front">{t('card_label_front')}</Label>
           <Input id="front" value={front} onChange={(e) => setFront(e.target.value)} />
         </div>
 
         {/* back */}
         <div className="grid gap-1.5">
-          <Label htmlFor="back">Перевод</Label>
+          <Label htmlFor="back">{t('card_label_back')}</Label>
           <Input id="back" value={back} onChange={(e) => setBack(e.target.value)} />
         </div>
 
         {/* word_type */}
         <div className="grid gap-1.5">
-          <Label htmlFor="word_type">Тип слова</Label>
+          <Label htmlFor="word_type">{t('card_label_word_type')}</Label>
           <select
             id="word_type"
             value={wordType}
             onChange={(e) => setWordType(e.target.value)}
             className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            <option value="">— не указан —</option>
-            <option value="noun">Существительное</option>
-            <option value="verb">Глагол</option>
-            <option value="adjective">Прилагательное</option>
-            <option value="adverb">Наречие</option>
-            <option value="preposition">Предлог</option>
-            <option value="conjunction">Союз</option>
-            <option value="phrase">Фраза</option>
-            <option value="other">Другое</option>
+            <option value="">{t('card_word_type_none')}</option>
+            <option value="noun">{t('card_word_type_noun')}</option>
+            <option value="verb">{t('card_word_type_verb')}</option>
+            <option value="adjective">{t('card_word_type_adjective')}</option>
+            <option value="adverb">{t('card_word_type_adverb')}</option>
+            <option value="preposition">{t('card_word_type_preposition')}</option>
+            <option value="conjunction">{t('card_word_type_conjunction')}</option>
+            <option value="phrase">{t('card_word_type_phrase')}</option>
+            <option value="other">{t('card_word_type_other')}</option>
           </select>
         </div>
 
         {/* gender */}
         <div className="grid gap-1.5">
-          <Label htmlFor="gender">Род</Label>
+          <Label htmlFor="gender">{t('card_label_gender')}</Label>
           <select
             id="gender"
             value={gender}
             onChange={(e) => setGender(e.target.value)}
             className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            <option value="">— не указан —</option>
-            <option value="der">der (мужской)</option>
-            <option value="die">die (женский)</option>
-            <option value="das">das (средний)</option>
+            <option value="">{t('card_gender_none')}</option>
+            <option value="der">{t('card_gender_der')}</option>
+            <option value="die">{t('card_gender_die')}</option>
+            <option value="das">{t('card_gender_das')}</option>
           </select>
         </div>
 
         {/* plural */}
         <div className="grid gap-1.5">
-          <Label htmlFor="plural">Множественное число</Label>
+          <Label htmlFor="plural">{t('card_label_plural')}</Label>
           <Input id="plural" value={plural} onChange={(e) => setPlural(e.target.value)} placeholder="die Häuser" />
         </div>
 
         {/* mnemonic */}
         <div className="grid gap-1.5">
-          <Label htmlFor="mnemonic">Мнемоника</Label>
-          <Input id="mnemonic" value={mnemonic} onChange={(e) => setMnemonic(e.target.value)} placeholder="Ассоциация для запоминания" />
+          <Label htmlFor="mnemonic">{t('card_label_mnemonic')}</Label>
+          <Input id="mnemonic" value={mnemonic} onChange={(e) => setMnemonic(e.target.value)} placeholder={t('card_mnemonic_placeholder')} />
         </div>
 
         {/* tags */}
         <div className="grid gap-1.5">
-          <Label htmlFor="tags">Теги (через запятую)</Label>
+          <Label htmlFor="tags">{t('card_label_tags')}</Label>
           <Input
             id="tags"
             value={tagsInput}
             onChange={(e) => setTagsInput(e.target.value)}
-            placeholder="A1, существительные, дом"
+            placeholder={t('card_tags_placeholder')}
           />
         </div>
 
         {/* Examples */}
         <div className="grid gap-2">
           <div className="flex items-center justify-between">
-            <Label>Примеры предложений</Label>
+            <Label>{t('card_label_examples')}</Label>
             <Button
               type="button"
               variant="outline"
@@ -284,7 +286,7 @@ export default function CardEditPage({ params }: PageProps) {
               ) : (
                 <Sparkles className="size-3.5 mr-1.5" />
               )}
-              Сгенерировать
+              {t('card_generate')}
             </Button>
           </div>
 
@@ -295,13 +297,13 @@ export default function CardEditPage({ params }: PageProps) {
                   <Input
                     value={ex.de}
                     onChange={(e) => updateExample(i, 'de', e.target.value)}
-                    placeholder="Немецкое предложение"
+                    placeholder={t('card_de_placeholder')}
                     className="text-sm"
                   />
                   <Input
                     value={ex.ru}
                     onChange={(e) => updateExample(i, 'ru', e.target.value)}
-                    placeholder="Перевод"
+                    placeholder={t('card_ru_placeholder')}
                     className="text-sm"
                   />
                 </div>
@@ -320,24 +322,24 @@ export default function CardEditPage({ params }: PageProps) {
 
           <Button type="button" variant="outline" size="sm" onClick={addExample} className="w-fit">
             <Plus className="size-3.5 mr-1.5" />
-            Добавить пример
+            {t('card_add_example')}
           </Button>
         </div>
 
         {/* FSRS info */}
         <div className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-          Повторений: {card.reps} · Провалов: {card.lapses}
-          {card.due_at && ` · До повтора: ${new Date(card.due_at).toLocaleDateString('ru-RU')}`}
+          {t('card_reps')} {card.reps} · {t('card_lapses')} {card.lapses}
+          {card.due_at && ` · ${t('card_due')} ${new Date(card.due_at).toLocaleDateString('ru-RU')}`}
         </div>
 
         {/* Actions */}
         <div className="flex gap-3 pt-2">
           <Button onClick={handleSave} disabled={saving}>
             {saving && <Loader2 className="size-4 mr-2 animate-spin" />}
-            Сохранить
+            {t('card_save')}
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/cards">Отмена</Link>
+            <Link href="/cards">{t('card_cancel')}</Link>
           </Button>
         </div>
       </div>

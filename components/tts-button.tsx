@@ -4,6 +4,7 @@ import { Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTTS } from '@/lib/hooks/use-tts';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/context';
 
 type Props = {
   text: string;
@@ -14,20 +15,21 @@ type Props = {
 };
 
 export function TTSButton({ text, rate = 1, className, size = 'icon', autoPlay = false }: Props) {
+  const { t } = useI18n();
   const { speak, status } = useTTS();
 
   if (!status.supported) {
     return (
-      <Button variant="ghost" size={size} disabled title="TTS не поддерживается в этом браузере">
+      <Button variant="ghost" size={size} disabled title={t('tts_unsupported')}>
         <VolumeX className="size-4" />
       </Button>
     );
   }
 
   if (autoPlay) {
-    // Воспроизведение должно быть инициировано пользовательским действием,
-    // поэтому autoPlay просто пред-вызывает speak один раз при mount.
-    // Однако в браузерах с строгой политикой автозапуска это может не сработать.
+    // Playback must be initiated by a user action,
+    // so autoPlay just pre-calls speak once on mount.
+    // However in browsers with strict autoplay policy this may not work.
     setTimeout(() => speak(text, rate), 50);
   }
 
@@ -36,7 +38,7 @@ export function TTSButton({ text, rate = 1, className, size = 'icon', autoPlay =
       variant="ghost"
       size={size}
       onClick={() => speak(text, rate)}
-      title={status.hasVoice ? `Озвучить (${status.voiceName})` : 'Озвучить (нет немецкого голоса)'}
+      title={status.hasVoice ? `${t('tts_speak')} (${status.voiceName})` : t('tts_no_voice')}
       className={cn(status.speaking && 'animate-pulse', className)}
     >
       <Volume2 className="size-4" />

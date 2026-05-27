@@ -5,6 +5,7 @@ import { Loader2, ChevronLeft, RotateCw, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/context';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,6 +28,7 @@ type Props = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function GrammarSentenceBuilder({ noteId, noteTitle, onBack }: Props) {
+  const { t } = useI18n();
   const [status, setStatus] = useState<Status>('loading');
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [idx, setIdx] = useState(0);
@@ -59,7 +61,7 @@ export function GrammarSentenceBuilder({ noteId, noteTitle, onBack }: Props) {
           throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
         }
         const data = await res.json();
-        if (!data.exercises?.length) throw new Error('Нет упражнений');
+        if (!data.exercises?.length) throw new Error('No exercises');
         if (!cancelled) {
           setExercises(data.exercises);
           setScore(0);
@@ -122,7 +124,7 @@ export function GrammarSentenceBuilder({ noteId, noteTitle, onBack }: Props) {
     return (
       <div className="flex flex-col items-center gap-4 py-20">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Генерирую упражнения…</p>
+        <p className="text-sm text-muted-foreground">{t('grambld_generating')}</p>
       </div>
     );
   }
@@ -132,15 +134,15 @@ export function GrammarSentenceBuilder({ noteId, noteTitle, onBack }: Props) {
   if (status === 'error') {
     return (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
-        <p className="text-destructive">Не удалось сгенерировать упражнения</p>
+        <p className="text-destructive">{t('grambld_error')}</p>
         <div className="flex gap-2">
           <Button onClick={onBack} variant="outline">
             <ChevronLeft className="size-4 mr-1" />
-            Назад
+            {t('grambld_back')}
           </Button>
           <Button onClick={() => setStatus('loading')}>
             <RotateCw className="size-4 mr-1.5" />
-            Повторить
+            {t('grambld_retry')}
           </Button>
         </div>
       </div>
@@ -158,16 +160,16 @@ export function GrammarSentenceBuilder({ noteId, noteTitle, onBack }: Props) {
           <p className="text-3xl font-bold tabular-nums">
             {score} / {exercises.length}
           </p>
-          <p className="text-muted-foreground mt-1">правильных ответов</p>
+          <p className="text-muted-foreground mt-1">{t('grambld_correct_answers')}</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={restart}>
             <RotateCw className="size-4 mr-1.5" />
-            Ещё раз
+            {t('grambld_again')}
           </Button>
           <Button onClick={onBack} variant="outline">
             <ChevronLeft className="size-4 mr-1" />
-            К темам
+            {t('grambld_back_to_topics')}
           </Button>
         </div>
       </div>
@@ -200,13 +202,13 @@ export function GrammarSentenceBuilder({ noteId, noteTitle, onBack }: Props) {
       </div>
 
       {/* Instruction */}
-      <p className="text-sm font-medium">Составь предложение:</p>
+      <p className="text-sm font-medium">{t('grambld_instruction')}</p>
 
       {/* Selected words area */}
       <div className="min-h-[52px] rounded-xl border bg-card px-4 py-3 flex flex-wrap gap-2">
         {selected.length === 0 ? (
           <span className="text-sm text-muted-foreground italic">
-            Нажимай на слова ниже…
+            {t('grambld_tap_hint')}
           </span>
         ) : (
           selected.map((word, i) => (
@@ -266,17 +268,17 @@ export function GrammarSentenceBuilder({ noteId, noteTitle, onBack }: Props) {
           >
             {checkState === 'correct' ? (
               <>
-                <Check className="size-4" /> Верно!
+                <Check className="size-4" /> {t('grambld_correct')}
               </>
             ) : (
               <>
-                <X className="size-4" /> Неверно
+                <X className="size-4" /> {t('grambld_wrong')}
               </>
             )}
           </div>
           {checkState === 'wrong' && (
             <p className="text-foreground/90 mb-1.5 font-medium">
-              Правильно: <span className="text-emerald-700 dark:text-emerald-400">{ex.sentence}</span>
+              {t('grambld_correct_answer')} <span className="text-emerald-700 dark:text-emerald-400">{ex.sentence}</span>
             </p>
           )}
           <p className="text-foreground/80 leading-relaxed">{ex.explanation}</p>
@@ -290,11 +292,11 @@ export function GrammarSentenceBuilder({ noteId, noteTitle, onBack }: Props) {
           disabled={selected.length !== ex.words.length}
           className="self-end"
         >
-          Проверить
+          {t('grambld_check')}
         </Button>
       ) : (
         <Button onClick={next} className="self-end">
-          {idx + 1 < exercises.length ? 'Далее →' : 'Завершить'}
+          {idx + 1 < exercises.length ? t('grambld_next') : t('grambld_finish')}
         </Button>
       )}
     </div>

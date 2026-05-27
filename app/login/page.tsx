@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useI18n } from '@/lib/i18n/context';
 
 export default function LoginPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -30,15 +32,15 @@ export default function LoginPage() {
         const data = await res.json().catch(() => ({}));
         const code = data?.error?.code;
         if (code === 'INVALID_PASSWORD') {
-          setError('Неверный пароль');
+          setError(t('login_error_invalid'));
         } else if (code === 'SERVER_MISCONFIGURED') {
-          setError('Сервер не настроен — проверь .env.local');
+          setError(t('login_error_config'));
         } else {
-          setError('Не удалось войти. Попробуй ещё раз.');
+          setError(t('login_error_generic'));
         }
       }
     } catch {
-      setError('Сетевая ошибка. Проверь соединение.');
+      setError(t('login_error_network'));
     } finally {
       setPending(false);
     }
@@ -49,12 +51,12 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Deutsch Trainer</CardTitle>
-          <CardDescription>Введи пароль для доступа</CardDescription>
+          <CardDescription>{t('login_description')}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="password">Пароль</Label>
+              <Label htmlFor="password">{t('login_password_label')}</Label>
               <Input
                 id="password"
                 type="password"
@@ -68,7 +70,7 @@ export default function LoginPage() {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" disabled={pending || !password}>
-              {pending ? 'Вхожу…' : 'Войти'}
+              {pending ? t('login_submitting') : t('login_submit')}
             </Button>
           </form>
         </CardContent>

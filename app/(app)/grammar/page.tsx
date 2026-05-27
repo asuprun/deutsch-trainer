@@ -15,6 +15,7 @@ import {
 import { GrammarExerciseSession } from '@/components/grammar-exercise-session';
 import { GrammarSentenceBuilder } from '@/components/grammar-sentence-builder';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/context';
 
 type GrammarNote = {
   id: string;
@@ -29,7 +30,7 @@ type GrammarNote = {
 type Tab = 'rules' | 'exercises';
 type ExerciseMode = 'fill' | 'builder';
 
-/** Простой markdown-рендер: параграфы по \n\n, **bold** */
+/** Simple markdown renderer: paragraphs on \n\n, **bold** */
 function renderMarkdown(text: string): React.ReactNode[] {
   const paragraphs = text.split(/\n\n+/);
   return paragraphs.map((para, i) => {
@@ -55,6 +56,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
 }
 
 export default function GrammarPage() {
+  const { t } = useI18n();
   const [notes, setNotes] = useState<GrammarNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -71,7 +73,7 @@ export default function GrammarPage() {
         const data = await res.json();
         setNotes(data.grammar_notes ?? []);
       } catch (e) {
-        toast.error('Не удалось загрузить грамматику', {
+        toast.error(t('grammar_load_error'), {
           description: e instanceof Error ? e.message : '',
         });
       } finally {
@@ -79,7 +81,7 @@ export default function GrammarPage() {
       }
     }
     load();
-  }, []);
+  }, [t]);
 
   const filtered = search
     ? notes.filter(
@@ -92,8 +94,8 @@ export default function GrammarPage() {
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-3xl">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Грамматика</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Правила и интерактивные упражнения</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('grammar_title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t('grammar_subtitle')}</p>
       </header>
 
       {/* ── Tab switcher ── */}
@@ -108,7 +110,7 @@ export default function GrammarPage() {
           )}
         >
           <BookOpen className="size-3.5" />
-          Правила
+          {t('grammar_tab_rules')}
         </button>
         <button
           onClick={() => { setTab('exercises'); setActiveNote(null); setExerciseMode(null); }}
@@ -120,15 +122,15 @@ export default function GrammarPage() {
           )}
         >
           <Dumbbell className="size-3.5" />
-          Упражнения
+          {t('grammar_tab_exercises')}
         </button>
       </div>
 
-      {/* ══════════════════════════ TAB: ПРАВИЛА ══════════════════════════════ */}
+      {/* ══════════════════════════ TAB: RULES ══════════════════════════════ */}
       {tab === 'rules' && (
         <>
           <Input
-            placeholder="Поиск по заголовку или тексту..."
+            placeholder={t('grammar_search_placeholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="max-w-sm"
@@ -143,11 +145,11 @@ export default function GrammarPage() {
           ) : filtered.length === 0 ? (
             <div className="py-20 text-center">
               <p className="text-lg font-medium">
-                {notes.length === 0 ? 'Грамматических заметок пока нет.' : 'Ничего не найдено.'}
+                {notes.length === 0 ? t('grammar_empty_notes') : t('grammar_empty_search')}
               </p>
               {notes.length === 0 && (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Загрузи скрин страницы учебника с грамматикой.
+                  {t('grammar_upload_hint')}
                 </p>
               )}
             </div>
@@ -171,7 +173,7 @@ export default function GrammarPage() {
                     {note.examples && note.examples.length > 0 && (
                       <div className="mt-4 flex flex-col gap-1.5">
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Примеры
+                          {t('grammar_examples_label')}
                         </p>
                         {note.examples.map((ex, i) => (
                           <div key={i} className="text-sm">
@@ -194,7 +196,7 @@ export default function GrammarPage() {
                         }}
                       >
                         <Dumbbell className="size-3.5 mr-1.5" />
-                        Потренироваться
+                        {t('grammar_practice_btn')}
                       </Button>
                     </div>
                   </AccordionContent>
@@ -205,7 +207,7 @@ export default function GrammarPage() {
         </>
       )}
 
-      {/* ════════════════════════ TAB: УПРАЖНЕНИЯ ════════════════════════════ */}
+      {/* ════════════════════════ TAB: EXERCISES ════════════════════════════ */}
       {tab === 'exercises' && (
         <>
           {/* Fill-in-the-blank session */}
@@ -230,24 +232,24 @@ export default function GrammarPage() {
           {activeNote && exerciseMode === null && (
             <div className="flex flex-col gap-5 max-w-sm">
               <div>
-                <p className="text-sm text-muted-foreground">Тема:</p>
+                <p className="text-sm text-muted-foreground">{t('grammar_topic_label')}</p>
                 <p className="font-medium mt-0.5">{activeNote.title}</p>
               </div>
-              <p className="text-sm font-medium">Выбери режим:</p>
+              <p className="text-sm font-medium">{t('grammar_choose_mode')}</p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
                   onClick={() => setExerciseMode('fill')}
                   className="flex-1 flex flex-col items-center gap-2 rounded-xl border px-5 py-4 text-sm font-medium hover:bg-muted/60 transition-colors"
                 >
                   <span className="text-2xl">📝</span>
-                  Заполни пропуск
+                  {t('grammar_mode_fill')}
                 </button>
                 <button
                   onClick={() => setExerciseMode('builder')}
                   className="flex-1 flex flex-col items-center gap-2 rounded-xl border px-5 py-4 text-sm font-medium hover:bg-muted/60 transition-colors"
                 >
                   <span className="text-2xl">🔀</span>
-                  Составь предложение
+                  {t('grammar_mode_builder')}
                 </button>
               </div>
               <Button
@@ -257,7 +259,7 @@ export default function GrammarPage() {
                 onClick={() => { setActiveNote(null); setExerciseMode(null); }}
               >
                 <ChevronLeft className="size-4 mr-1" />
-                К темам
+                {t('grammar_back_to_topics')}
               </Button>
             </div>
           )}
@@ -271,9 +273,9 @@ export default function GrammarPage() {
                 ))
               ) : notes.length === 0 ? (
                 <div className="py-20 text-center">
-                  <p className="text-lg font-medium">Нет грамматических тем</p>
+                  <p className="text-lg font-medium">{t('grammar_no_topics')}</p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Загрузи скрин учебника, чтобы создать первые правила.
+                    {t('grammar_no_topics_hint')}
                   </p>
                 </div>
               ) : (
@@ -299,7 +301,7 @@ export default function GrammarPage() {
                       }}
                     >
                       <Dumbbell className="size-3.5 mr-1.5" />
-                      Тренировать
+                      {t('grammar_train_btn')}
                     </Button>
                   </div>
                 ))

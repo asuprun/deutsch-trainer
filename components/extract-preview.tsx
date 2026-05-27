@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import type {
   ExtractedGrammar,
   ExtractedSentence,
 } from '@/lib/gemini/prompts';
+import { useI18n } from '@/lib/i18n/context';
 
 export type Selection = {
   words: Set<number>;
@@ -47,6 +48,7 @@ const GENDER_COLOR: Record<string, string> = {
 };
 
 export function ExtractPreview({ preview, selection, onChange }: Props) {
+  const { t } = useI18n();
   const counts = {
     words: preview.words.length,
     phrases: preview.phrases.length,
@@ -65,10 +67,10 @@ export function ExtractPreview({ preview, selection, onChange }: Props) {
 
       <Tabs defaultValue="words">
         <TabsList>
-          <TabsTrigger value="words">Слова · {counts.words}</TabsTrigger>
-          <TabsTrigger value="phrases">Фразы · {counts.phrases}</TabsTrigger>
-          <TabsTrigger value="grammar">Грамматика · {counts.grammar}</TabsTrigger>
-          <TabsTrigger value="sentences">Предложения · {counts.sentences}</TabsTrigger>
+          <TabsTrigger value="words">{t('preview_tab_words')} · {counts.words}</TabsTrigger>
+          <TabsTrigger value="phrases">{t('preview_tab_phrases')} · {counts.phrases}</TabsTrigger>
+          <TabsTrigger value="grammar">{t('preview_tab_grammar')} · {counts.grammar}</TabsTrigger>
+          <TabsTrigger value="sentences">{t('preview_tab_sentences')} · {counts.sentences}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="words" className="mt-4">
@@ -77,6 +79,13 @@ export function ExtractPreview({ preview, selection, onChange }: Props) {
             selected={selection.words}
             onToggle={(i) => onChange({ ...selection, words: toggle(selection.words, i) })}
             onToggleAll={() => onChange({ ...selection, words: toggleAll(range(counts.words), selection.words) })}
+            selectedLabel={t('preview_selected_of')}
+            ofLabel={t('preview_of')}
+            deselectAllLabel={t('preview_deselect_all')}
+            selectAllLabel={t('preview_select_all')}
+            emptyLabel={t('preview_empty_words')}
+            pluralLabel={t('preview_plural_label')}
+            verbSepLabel={t('preview_verb_sep')}
           />
         </TabsContent>
         <TabsContent value="phrases" className="mt-4">
@@ -85,6 +94,11 @@ export function ExtractPreview({ preview, selection, onChange }: Props) {
             selected={selection.phrases}
             onToggle={(i) => onChange({ ...selection, phrases: toggle(selection.phrases, i) })}
             onToggleAll={() => onChange({ ...selection, phrases: toggleAll(range(counts.phrases), selection.phrases) })}
+            selectedLabel={t('preview_selected_of')}
+            ofLabel={t('preview_of')}
+            deselectAllLabel={t('preview_deselect_all')}
+            selectAllLabel={t('preview_select_all')}
+            emptyLabel={t('preview_empty_phrases')}
           />
         </TabsContent>
         <TabsContent value="grammar" className="mt-4">
@@ -93,6 +107,11 @@ export function ExtractPreview({ preview, selection, onChange }: Props) {
             selected={selection.grammar}
             onToggle={(i) => onChange({ ...selection, grammar: toggle(selection.grammar, i) })}
             onToggleAll={() => onChange({ ...selection, grammar: toggleAll(range(counts.grammar), selection.grammar) })}
+            selectedLabel={t('preview_selected_of')}
+            ofLabel={t('preview_of')}
+            deselectAllLabel={t('preview_deselect_all')}
+            selectAllLabel={t('preview_select_all')}
+            emptyLabel={t('preview_empty_grammar')}
           />
         </TabsContent>
         <TabsContent value="sentences" className="mt-4">
@@ -101,6 +120,11 @@ export function ExtractPreview({ preview, selection, onChange }: Props) {
             selected={selection.sentences}
             onToggle={(i) => onChange({ ...selection, sentences: toggle(selection.sentences, i) })}
             onToggleAll={() => onChange({ ...selection, sentences: toggleAll(range(counts.sentences), selection.sentences) })}
+            selectedLabel={t('preview_selected_of')}
+            ofLabel={t('preview_of')}
+            deselectAllLabel={t('preview_deselect_all')}
+            selectAllLabel={t('preview_select_all')}
+            emptyLabel={t('preview_empty_sentences')}
           />
         </TabsContent>
       </Tabs>
@@ -108,20 +132,36 @@ export function ExtractPreview({ preview, selection, onChange }: Props) {
   );
 }
 
-function SectionHeader({ total, selected, onToggleAll }: { total: number; selected: number; onToggleAll: () => void }) {
+function SectionHeader({
+  total,
+  selected,
+  onToggleAll,
+  selectedLabel,
+  ofLabel,
+  deselectAllLabel,
+  selectAllLabel,
+}: {
+  total: number;
+  selected: number;
+  onToggleAll: () => void;
+  selectedLabel: string;
+  ofLabel: string;
+  deselectAllLabel: string;
+  selectAllLabel: string;
+}) {
   if (total === 0) return null;
   return (
     <div className="flex items-center justify-between border-b pb-2 mb-2 text-sm text-muted-foreground">
-      <span>Выбрано {selected} из {total}</span>
+      <span>{selectedLabel} {selected} {ofLabel} {total}</span>
       <button onClick={onToggleAll} className="hover:underline">
-        {selected === total ? 'Снять все' : 'Выбрать все'}
+        {selected === total ? deselectAllLabel : selectAllLabel}
       </button>
     </div>
   );
 }
 
 function EmptyState({ kind }: { kind: string }) {
-  return <p className="text-sm text-muted-foreground py-8 text-center">Не найдено: {kind}</p>;
+  return <p className="text-sm text-muted-foreground py-8 text-center">{kind}</p>;
 }
 
 function WordsList({
@@ -129,16 +169,38 @@ function WordsList({
   selected,
   onToggle,
   onToggleAll,
+  selectedLabel,
+  ofLabel,
+  deselectAllLabel,
+  selectAllLabel,
+  emptyLabel,
+  pluralLabel,
+  verbSepLabel,
 }: {
   words: ExtractedWord[];
   selected: Set<number>;
   onToggle: (i: number) => void;
   onToggleAll: () => void;
+  selectedLabel: string;
+  ofLabel: string;
+  deselectAllLabel: string;
+  selectAllLabel: string;
+  emptyLabel: string;
+  pluralLabel: string;
+  verbSepLabel: string;
 }) {
-  if (words.length === 0) return <EmptyState kind="слов" />;
+  if (words.length === 0) return <EmptyState kind={emptyLabel} />;
   return (
     <div>
-      <SectionHeader total={words.length} selected={selected.size} onToggleAll={onToggleAll} />
+      <SectionHeader
+        total={words.length}
+        selected={selected.size}
+        onToggleAll={onToggleAll}
+        selectedLabel={selectedLabel}
+        ofLabel={ofLabel}
+        deselectAllLabel={deselectAllLabel}
+        selectAllLabel={selectAllLabel}
+      />
       <ul className="flex flex-col gap-1">
         {words.map((w, i) => {
           const genderClass = w.gender && GENDER_COLOR[w.gender];
@@ -150,7 +212,7 @@ function WordsList({
                 <div className="flex items-baseline gap-2 flex-wrap">
                   {w.gender && <span className={genderClass}>{w.gender}</span>}
                   <span className="font-medium">{w.de}</span>
-                  {w.plural && <span className="text-xs text-muted-foreground">мн. {w.plural}</span>}
+                  {w.plural && <span className="text-xs text-muted-foreground">{pluralLabel} {w.plural}</span>}
                   {w.level && <Badge variant="outline" className="ml-auto text-xs">{w.level}</Badge>}
                 </div>
                 <div className="text-sm text-muted-foreground">{w.ru}</div>
@@ -158,7 +220,7 @@ function WordsList({
                   <div className="mt-1 text-xs text-muted-foreground">
                     {w.forms.infinitiv} · {w.forms.praeteritum} · {w.forms.partizip_2}
                     {w.forms.hilfsverb && ` · ${w.forms.hilfsverb}`}
-                    {w.forms.trennbar && ' · отдел.'}
+                    {w.forms.trennbar && ` · ${verbSepLabel}`}
                   </div>
                 )}
               </label>
@@ -175,16 +237,34 @@ function PhrasesList({
   selected,
   onToggle,
   onToggleAll,
+  selectedLabel,
+  ofLabel,
+  deselectAllLabel,
+  selectAllLabel,
+  emptyLabel,
 }: {
   phrases: ExtractedPhrase[];
   selected: Set<number>;
   onToggle: (i: number) => void;
   onToggleAll: () => void;
+  selectedLabel: string;
+  ofLabel: string;
+  deselectAllLabel: string;
+  selectAllLabel: string;
+  emptyLabel: string;
 }) {
-  if (phrases.length === 0) return <EmptyState kind="фраз" />;
+  if (phrases.length === 0) return <EmptyState kind={emptyLabel} />;
   return (
     <div>
-      <SectionHeader total={phrases.length} selected={selected.size} onToggleAll={onToggleAll} />
+      <SectionHeader
+        total={phrases.length}
+        selected={selected.size}
+        onToggleAll={onToggleAll}
+        selectedLabel={selectedLabel}
+        ofLabel={ofLabel}
+        deselectAllLabel={deselectAllLabel}
+        selectAllLabel={selectAllLabel}
+      />
       <ul className="flex flex-col gap-1">
         {phrases.map((p, i) => {
           const id = `phrase-${i}`;
@@ -208,16 +288,34 @@ function GrammarList({
   selected,
   onToggle,
   onToggleAll,
+  selectedLabel,
+  ofLabel,
+  deselectAllLabel,
+  selectAllLabel,
+  emptyLabel,
 }: {
   grammar: ExtractedGrammar[];
   selected: Set<number>;
   onToggle: (i: number) => void;
   onToggleAll: () => void;
+  selectedLabel: string;
+  ofLabel: string;
+  deselectAllLabel: string;
+  selectAllLabel: string;
+  emptyLabel: string;
 }) {
-  if (grammar.length === 0) return <EmptyState kind="грамматических правил" />;
+  if (grammar.length === 0) return <EmptyState kind={emptyLabel} />;
   return (
     <div>
-      <SectionHeader total={grammar.length} selected={selected.size} onToggleAll={onToggleAll} />
+      <SectionHeader
+        total={grammar.length}
+        selected={selected.size}
+        onToggleAll={onToggleAll}
+        selectedLabel={selectedLabel}
+        ofLabel={ofLabel}
+        deselectAllLabel={deselectAllLabel}
+        selectAllLabel={selectAllLabel}
+      />
       <ul className="flex flex-col gap-2">
         {grammar.map((g, i) => {
           const id = `grammar-${i}`;
@@ -251,16 +349,34 @@ function SentencesList({
   selected,
   onToggle,
   onToggleAll,
+  selectedLabel,
+  ofLabel,
+  deselectAllLabel,
+  selectAllLabel,
+  emptyLabel,
 }: {
   sentences: ExtractedSentence[];
   selected: Set<number>;
   onToggle: (i: number) => void;
   onToggleAll: () => void;
+  selectedLabel: string;
+  ofLabel: string;
+  deselectAllLabel: string;
+  selectAllLabel: string;
+  emptyLabel: string;
 }) {
-  if (sentences.length === 0) return <EmptyState kind="предложений" />;
+  if (sentences.length === 0) return <EmptyState kind={emptyLabel} />;
   return (
     <div>
-      <SectionHeader total={sentences.length} selected={selected.size} onToggleAll={onToggleAll} />
+      <SectionHeader
+        total={sentences.length}
+        selected={selected.size}
+        onToggleAll={onToggleAll}
+        selectedLabel={selectedLabel}
+        ofLabel={ofLabel}
+        deselectAllLabel={deselectAllLabel}
+        selectAllLabel={selectAllLabel}
+      />
       <ul className="flex flex-col gap-1">
         {sentences.map((s, i) => {
           const id = `sentence-${i}`;
