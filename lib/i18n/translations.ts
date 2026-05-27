@@ -386,6 +386,65 @@ export const translations = {
     revcard_verb_sep: 'отдел.',
     // Авто-предложение
     rating_auto: 'авто',
+    // Статистика
+    stats_title: 'Статистика',
+    stats_subtitle: 'Прогресс обучения и активность',
+    stats_due_today_label: 'К повторению',
+    stats_reviewed_today_label: 'Повторено',
+    stats_total_cards_label: 'Всего карт',
+    stats_in_base: 'в базе',
+    stats_today: 'сегодня',
+    stats_retention_period: 'за 30 дней',
+    stats_streak_day: 'день',
+    stats_streak_days234: 'дня',
+    stats_streak_days5: 'дней',
+    stats_heatmap_title: 'Активность за 16 недель',
+    stats_heatmap_reviews: 'ревью',
+    stats_heatmap_days: 'дн.',
+    stats_heatmap_no_activity: 'нет занятий',
+    stats_heatmap_less: 'Меньше',
+    stats_heatmap_more: 'Больше',
+    stats_cards_state_title: 'Состояние карт',
+    stats_cards_kind_title: 'Типы карт',
+    stats_no_cards: 'Нет карт',
+    stats_reviews30_title: 'Ревью за 30 дней',
+    stats_active_days: 'акт. дн.',
+    stats_per_day: '/день',
+    stats_forecast_title: 'Прогноз на 7 дней',
+    stats_forecast_total: 'карт суммарно',
+    // Ошибки
+    error_title: 'Ошибка',
+    error_page_load: 'Произошла ошибка при загрузке страницы',
+    error_refresh: 'Обновить',
+    // Тренировка (оставшееся)
+    review_save_error: 'Не удалось сохранить ответ',
+    review_empty_desc: 'Загрузи скрин страницы учебника, чтобы создать первые карты, или подожди, пока подойдёт время повторения.',
+    review_close_label: 'Закрыть тренировку',
+    review_load_error: 'Не удалось загрузить очередь',
+    // Аббревиатуры типов слов (карточка тренировки)
+    revcard_wt_noun: 'сущ.',
+    revcard_wt_verb: 'глаг.',
+    revcard_wt_adj: 'прил.',
+    revcard_wt_adv: 'нар.',
+    revcard_wt_prep: 'предл.',
+    revcard_wt_conj: 'союз',
+    revcard_wt_pron: 'мест.',
+    revcard_wt_num: 'числ.',
+    revcard_wt_interj: 'межд.',
+    // Навигация
+    nav_navigation: 'Навигация',
+    // Push ошибки
+    push_subscribe_error: 'Не удалось подписаться',
+    push_unsubscribe_error: 'Ошибка отписки',
+    // Настройки
+    settings_saved: 'Настройки сохранены',
+    settings_save_error: 'Не удалось сохранить',
+    // Карточки
+    cards_check_gemini: 'Проверь лимит Gemini API',
+    // ИИ — нет данных
+    ai_no_data: 'Нет данных. Добавь таблицу api_usage_log в Supabase.',
+    // Диалог создания
+    create_translation_placeholder: 'дом, идти…',
   },
   en: {
     nav_home: 'Home',
@@ -764,6 +823,65 @@ export const translations = {
     revcard_verb_sep: 'sep.',
     // Auto suggestion
     rating_auto: 'auto',
+    // Stats
+    stats_title: 'Statistics',
+    stats_subtitle: 'Learning progress and activity',
+    stats_due_today_label: 'Due',
+    stats_reviewed_today_label: 'Reviewed',
+    stats_total_cards_label: 'Total cards',
+    stats_in_base: 'in database',
+    stats_today: 'today',
+    stats_retention_period: 'over 30 days',
+    stats_streak_day: 'day',
+    stats_streak_days234: 'days',
+    stats_streak_days5: 'days',
+    stats_heatmap_title: 'Activity — 16 weeks',
+    stats_heatmap_reviews: 'reviews',
+    stats_heatmap_days: 'd.',
+    stats_heatmap_no_activity: 'no activity',
+    stats_heatmap_less: 'Less',
+    stats_heatmap_more: 'More',
+    stats_cards_state_title: 'Card state',
+    stats_cards_kind_title: 'Card types',
+    stats_no_cards: 'No cards',
+    stats_reviews30_title: 'Reviews — 30 days',
+    stats_active_days: 'active d.',
+    stats_per_day: '/day',
+    stats_forecast_title: '7-day forecast',
+    stats_forecast_total: 'cards total',
+    // Errors
+    error_title: 'Error',
+    error_page_load: 'Something went wrong loading this page',
+    error_refresh: 'Refresh',
+    // Review (remaining)
+    review_save_error: 'Could not save answer',
+    review_empty_desc: 'Upload a textbook screenshot to create your first cards, or wait until review time.',
+    review_close_label: 'Close session',
+    review_load_error: 'Could not load queue',
+    // Word type abbreviations
+    revcard_wt_noun: 'n.',
+    revcard_wt_verb: 'v.',
+    revcard_wt_adj: 'adj.',
+    revcard_wt_adv: 'adv.',
+    revcard_wt_prep: 'prep.',
+    revcard_wt_conj: 'conj.',
+    revcard_wt_pron: 'pron.',
+    revcard_wt_num: 'num.',
+    revcard_wt_interj: 'interj.',
+    // Navigation
+    nav_navigation: 'Navigation',
+    // Push errors
+    push_subscribe_error: 'Could not subscribe',
+    push_unsubscribe_error: 'Could not unsubscribe',
+    // Settings
+    settings_saved: 'Settings saved',
+    settings_save_error: 'Could not save',
+    // Cards
+    cards_check_gemini: 'Check Gemini API limit',
+    // AI — no data
+    ai_no_data: 'No data. Add the api_usage_log table to Supabase.',
+    // Create dialog
+    create_translation_placeholder: 'home, gehen…',
   },
   de: {
     nav_home: 'Startseite',
@@ -1142,6 +1260,65 @@ export const translations = {
     revcard_verb_sep: 'trennb.',
     // Auto-Vorschlag
     rating_auto: 'auto',
+    // Statistik
+    stats_title: 'Statistik',
+    stats_subtitle: 'Lernfortschritt und Aktivität',
+    stats_due_today_label: 'Fällig',
+    stats_reviewed_today_label: 'Wiederholt',
+    stats_total_cards_label: 'Karten gesamt',
+    stats_in_base: 'in der DB',
+    stats_today: 'heute',
+    stats_retention_period: 'über 30 Tage',
+    stats_streak_day: 'Tag',
+    stats_streak_days234: 'Tage',
+    stats_streak_days5: 'Tage',
+    stats_heatmap_title: 'Aktivität — 16 Wochen',
+    stats_heatmap_reviews: 'Wdh.',
+    stats_heatmap_days: 'T.',
+    stats_heatmap_no_activity: 'keine Aktivität',
+    stats_heatmap_less: 'Weniger',
+    stats_heatmap_more: 'Mehr',
+    stats_cards_state_title: 'Kartenzustand',
+    stats_cards_kind_title: 'Kartentypen',
+    stats_no_cards: 'Keine Karten',
+    stats_reviews30_title: 'Wiederholungen — 30 Tage',
+    stats_active_days: 'aktive T.',
+    stats_per_day: '/Tag',
+    stats_forecast_title: '7-Tage-Prognose',
+    stats_forecast_total: 'Karten gesamt',
+    // Fehler
+    error_title: 'Fehler',
+    error_page_load: 'Beim Laden der Seite ist ein Fehler aufgetreten',
+    error_refresh: 'Aktualisieren',
+    // Übung (Rest)
+    review_save_error: 'Antwort konnte nicht gespeichert werden',
+    review_empty_desc: 'Lade einen Lehrbuch-Screenshot hoch oder warte auf den nächsten Wiederholungszeitpunkt.',
+    review_close_label: 'Sitzung schließen',
+    review_load_error: 'Warteschlange konnte nicht geladen werden',
+    // Wortart-Abkürzungen
+    revcard_wt_noun: 'Subst.',
+    revcard_wt_verb: 'Vb.',
+    revcard_wt_adj: 'Adj.',
+    revcard_wt_adv: 'Adv.',
+    revcard_wt_prep: 'Präp.',
+    revcard_wt_conj: 'Konj.',
+    revcard_wt_pron: 'Pron.',
+    revcard_wt_num: 'Num.',
+    revcard_wt_interj: 'Interj.',
+    // Navigation
+    nav_navigation: 'Navigation',
+    // Push-Fehler
+    push_subscribe_error: 'Anmeldung fehlgeschlagen',
+    push_unsubscribe_error: 'Abmeldung fehlgeschlagen',
+    // Einstellungen
+    settings_saved: 'Einstellungen gespeichert',
+    settings_save_error: 'Konnte nicht speichern',
+    // Karten
+    cards_check_gemini: 'Gemini-API-Limit prüfen',
+    // KI — keine Daten
+    ai_no_data: 'Keine Daten. Tabelle api_usage_log zu Supabase hinzufügen.',
+    // Erstellungsdialog
+    create_translation_placeholder: 'дом, идти…',
   },
 } as const;
 

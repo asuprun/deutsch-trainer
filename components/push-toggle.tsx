@@ -69,7 +69,7 @@ export function PushToggle() {
       });
     } catch (e) {
       setState('unsubscribed');
-      toast.error('Не удалось подписаться', {
+      toast.error(t('push_subscribe_error'), {
         description: e instanceof Error ? e.message : '',
       });
     }
@@ -90,7 +90,7 @@ export function PushToggle() {
       toast.success(t('push_disable'));
     } catch (e) {
       setState('subscribed');
-      toast.error('Ошибка отписки', {
+      toast.error(t('push_unsubscribe_error'), {
         description: e instanceof Error ? e.message : '',
       });
     }

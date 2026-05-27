@@ -150,7 +150,7 @@ export function AppSidebar() {
           </SheetTrigger>
           <SheetContent side="bottom" className="pb-safe">
             <SheetHeader>
-              <SheetTitle>Навигация</SheetTitle>
+              <SheetTitle>{t('nav_navigation')}</SheetTitle>
             </SheetHeader>
             <nav className="mt-4 flex flex-col gap-1">
               {SHEET_NAV_ITEMS.map((item) => {

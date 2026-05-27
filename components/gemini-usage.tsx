@@ -69,7 +69,7 @@ export function GeminiUsage() {
 
   if (!data) {
     return (
-      <p className="text-sm text-muted-foreground">Нет данных. Добавь таблицу api_usage_log в Supabase.</p>
+      <p className="text-sm text-muted-foreground">{t('ai_no_data')}</p>
     );
   }
 

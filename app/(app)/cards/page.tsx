@@ -242,7 +242,7 @@ export default function CardsPage() {
 
       if (data.succeeded === 0) {
         const firstErr = data.results?.find((r: BatchResult) => !r.ok)?.error;
-        toast.error(t('cards_enrich_batch_fail'), { description: firstErr ?? 'Проверь лимит Gemini API' });
+        toast.error(t('cards_enrich_batch_fail'), { description: firstErr ?? t('cards_check_gemini') });
       } else {
         toast.success(`${t('cards_enrich_ok')} ${data.succeeded} / ${data.total}`);
         const failed: BatchResult[] = (data.results ?? []).filter((r: BatchResult) => !r.ok);

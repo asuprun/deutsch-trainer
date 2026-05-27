@@ -94,9 +94,9 @@ export default function SettingsPage() {
 
       const updated: SettingsData = await res.json();
       setForm(settingsToForm(updated));
-      toast.success('Настройки сохранены');
+      toast.success(t('settings_saved'));
     } catch (e) {
-      toast.error('Не удалось сохранить', {
+      toast.error(t('settings_save_error'), {
         description: e instanceof Error ? e.message : '',
       });
     } finally {

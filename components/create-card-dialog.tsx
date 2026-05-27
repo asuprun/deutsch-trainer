@@ -127,7 +127,7 @@ export function CreateCardDialog({ open, onOpenChange, onCreated }: Props) {
               {t('create_label_translation')} <span className="text-destructive">*</span>
             </label>
             <Input
-              placeholder="дом, идти..."
+              placeholder={t('create_translation_placeholder')}
               value={back}
               onChange={(e) => setBack(e.target.value)}
               required

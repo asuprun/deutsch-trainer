@@ -59,7 +59,7 @@ export default function ReviewPage() {
       }
     } catch (e) {
       setStatus('error');
-      setError(e instanceof Error ? e.message : 'Не удалось загрузить очередь');
+      setError(e instanceof Error ? e.message : t('review_load_error'));
     }
   }, []);
 
@@ -95,7 +95,7 @@ export default function ReviewPage() {
           throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
         }
       } catch (e) {
-        toast.error('Не удалось сохранить ответ', {
+        toast.error(t('review_save_error'), {
           description: e instanceof Error ? e.message : '',
         });
       } finally {
@@ -138,11 +138,11 @@ export default function ReviewPage() {
   if (status === 'error') {
     return (
       <div className="p-6 max-w-xl">
-        <h1 className="text-2xl font-semibold mb-2">Ошибка</h1>
+        <h1 className="text-2xl font-semibold mb-2">{t('error_title')}</h1>
         <p className="text-sm text-destructive mb-4">{error}</p>
         <Button onClick={loadQueue}>
           <RotateCw className="size-4 mr-2" />
-          Попробовать снова
+          {t('upload_retry')}
         </Button>
       </div>
     );
@@ -152,13 +152,10 @@ export default function ReviewPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-6 text-center">
         <h1 className="text-3xl font-semibold">{t('review_empty')}</h1>
-        <p className="text-muted-foreground max-w-md">
-          Загрузи скрин страницы учебника, чтобы создать первые карты, или подожди, пока подойдёт время
-          повторения.
-        </p>
+        <p className="text-muted-foreground max-w-md">{t('review_empty_desc')}</p>
         <div className="flex gap-3 mt-2">
           <Button asChild>
-            <Link href="/upload">Загрузить скрин</Link>
+            <Link href="/upload">{t('cards_upload_btn')}</Link>
           </Button>
           <Button variant="outline" asChild>
             <Link href="/">{t('btn_home')}</Link>
@@ -197,7 +194,7 @@ export default function ReviewPage() {
     <div className="flex flex-col h-[100dvh]">
       <header className="shrink-0 flex items-center gap-2 border-b px-4 py-3 sm:px-6">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/" aria-label="Закрыть тренировку">
+          <Link href="/" aria-label={t('review_close_label')}>
             <X className="size-5" />
           </Link>
         </Button>

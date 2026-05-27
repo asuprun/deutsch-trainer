@@ -39,15 +39,15 @@ export function ReviewCard({ card, flipped, autoTts = true }: Props) {
 
   // Word type abbreviation labels
   const WORD_TYPE_LABEL: Record<string, string> = {
-    noun: t('revcard_examples') === 'Примеры' ? 'сущ.' : (t('revcard_examples') === 'Examples' ? 'n.' : 'Subst.'),
-    verb: t('revcard_examples') === 'Примеры' ? 'глаг.' : (t('revcard_examples') === 'Examples' ? 'v.' : 'Vb.'),
-    adj: t('revcard_examples') === 'Примеры' ? 'прил.' : (t('revcard_examples') === 'Examples' ? 'adj.' : 'Adj.'),
-    adv: t('revcard_examples') === 'Примеры' ? 'нар.' : (t('revcard_examples') === 'Examples' ? 'adv.' : 'Adv.'),
-    prep: t('revcard_examples') === 'Примеры' ? 'предл.' : (t('revcard_examples') === 'Examples' ? 'prep.' : 'Präp.'),
-    conj: t('revcard_examples') === 'Примеры' ? 'союз' : (t('revcard_examples') === 'Examples' ? 'conj.' : 'Konj.'),
-    pron: t('revcard_examples') === 'Примеры' ? 'мест.' : (t('revcard_examples') === 'Examples' ? 'pron.' : 'Pron.'),
-    num: t('revcard_examples') === 'Примеры' ? 'числ.' : (t('revcard_examples') === 'Examples' ? 'num.' : 'Num.'),
-    interj: t('revcard_examples') === 'Примеры' ? 'межд.' : (t('revcard_examples') === 'Examples' ? 'interj.' : 'Interj.'),
+    noun:  t('revcard_wt_noun'),
+    verb:  t('revcard_wt_verb'),
+    adj:   t('revcard_wt_adj'),
+    adv:   t('revcard_wt_adv'),
+    prep:  t('revcard_wt_prep'),
+    conj:  t('revcard_wt_conj'),
+    pron:  t('revcard_wt_pron'),
+    num:   t('revcard_wt_num'),
+    interj: t('revcard_wt_interj'),
     other: '',
   };
 
