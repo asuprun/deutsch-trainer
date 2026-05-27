@@ -1,6 +1,13 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useLayoutEffect,
+  type ReactNode,
+} from 'react';
 import { type Locale, type TranslationKey, translations } from './translations';
 
 type I18nContextType = {
@@ -15,12 +22,21 @@ const I18nContext = createContext<I18nContextType>({
   t: (key) => translations.ru[key],
 });
 
+// useLayoutEffect fires before the browser paints — no flash of wrong language.
+// On the server (SSR) we fall back to plain useEffect (it's a no-op there anyway).
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>('ru');
 
-  useEffect(() => {
-    const saved = localStorage.getItem('locale') as Locale | null;
-    if (saved && ['ru', 'en', 'de'].includes(saved)) setLocaleState(saved);
+  useIsomorphicLayoutEffect(() => {
+    try {
+      const saved = localStorage.getItem('locale') as Locale | null;
+      if (saved && (['ru', 'en', 'de'] as const).includes(saved)) {
+        setLocaleState(saved);
+      }
+    } catch {}
   }, []);
 
   function setLocale(l: Locale) {
