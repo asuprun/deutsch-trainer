@@ -7,34 +7,36 @@ import { Input } from '@/components/ui/input';
 import { RatingButtons, type RatingIntervals } from '@/components/rating-buttons';
 import { compareAnswer, resultToGrade, type CompareResult } from '@/lib/utils/compare';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n/context';
 import type { Grade } from 'ts-fsrs';
 
 type Props = {
   correctAnswer: string;
-  /** Текст подсказки над полем ввода, например "переведи на русский" */
+  /** Текст подсказки над полем ввода */
   hint?: string;
   intervals: RatingIntervals | null;
   onRate: (grade: Grade) => void;
   disabled?: boolean;
 };
 
-const RESULT_CONFIG: Record<
-  CompareResult,
-  { icon: React.ElementType; label: string; color: string; bg: string }
-> = {
-  exact:  { icon: CheckCircle2, label: 'Точно!',   color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30' },
-  close:  { icon: CheckCircle2, label: 'Верно!',   color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30' },
-  almost: { icon: AlertCircle,  label: 'Почти…',   color: 'text-amber-400',   bg: 'bg-amber-500/10 border-amber-500/30' },
-  wrong:  { icon: XCircle,      label: 'Неверно',  color: 'text-rose-400',    bg: 'bg-rose-500/10 border-rose-500/30' },
-};
-
 export function TypingInput({ correctAnswer, hint, intervals, onRate, disabled }: Props) {
+  const { t } = useI18n();
   const inputRef   = useRef<HTMLInputElement>(null);
   const nextBtnRef = useRef<HTMLButtonElement>(null);
   const resultRef  = useRef<HTMLDivElement>(null);
   const [value, setValue]   = useState('');
   const [result, setResult] = useState<CompareResult | null>(null);
   const [checked, setChecked] = useState(false);
+
+  const RESULT_CONFIG: Record<
+    CompareResult,
+    { icon: React.ElementType; label: string; color: string; bg: string }
+  > = {
+    exact:  { icon: CheckCircle2, label: t('review_correct') + '!', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30' },
+    close:  { icon: CheckCircle2, label: t('review_correct') + '!', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30' },
+    almost: { icon: AlertCircle,  label: '…',                        color: 'text-amber-400',   bg: 'bg-amber-500/10 border-amber-500/30' },
+    wrong:  { icon: XCircle,      label: t('review_wrong'),          color: 'text-rose-400',    bg: 'bg-rose-500/10 border-rose-500/30' },
+  };
 
   // Автофокус на поле ввода при появлении
   useEffect(() => {
@@ -46,7 +48,6 @@ export function TypingInput({ correctAnswer, hint, intervals, onRate, disabled }
   useEffect(() => {
     if (checked) {
       const t1 = setTimeout(() => nextBtnRef.current?.focus(), 60);
-      // Даём клавиатуре закрыться (~300ms), затем скроллим к результату
       const t2 = setTimeout(() => {
         resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }, 350);
@@ -60,7 +61,6 @@ export function TypingInput({ correctAnswer, hint, intervals, onRate, disabled }
     setChecked(true);
   }
 
-  // Enter в поле ввода → проверить
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -68,7 +68,6 @@ export function TypingInput({ correctAnswer, hint, intervals, onRate, disabled }
     }
   }
 
-  // Enter / 1-4 на кнопке «Далее» или где угодно после проверки
   useEffect(() => {
     if (!checked) return;
     function onKey(e: KeyboardEvent) {
@@ -92,19 +91,17 @@ export function TypingInput({ correctAnswer, hint, intervals, onRate, disabled }
 
   return (
     <div className="w-full max-w-xl flex flex-col gap-4">
-      {/* Подсказка */}
       {hint && !checked && (
         <p className="text-sm text-muted-foreground text-center">{hint}</p>
       )}
 
-      {/* Поле ввода */}
       <div className="flex gap-2">
         <Input
           ref={inputRef}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Перевод на русский…"
+          placeholder={t('review_type_placeholder')}
           disabled={checked || disabled}
           className={cn(
             'text-base h-12 transition-colors',
@@ -120,7 +117,7 @@ export function TypingInput({ correctAnswer, hint, intervals, onRate, disabled }
         />
         {!checked && (
           <Button size="lg" onClick={handleCheck} disabled={!value.trim() || disabled}>
-            Проверить
+            {t('review_check')}
             <kbd className="ml-2 rounded bg-black/20 px-1.5 py-0.5 text-xs font-mono hidden sm:inline">
               Enter
             </kbd>
@@ -128,7 +125,6 @@ export function TypingInput({ correctAnswer, hint, intervals, onRate, disabled }
         )}
       </div>
 
-      {/* Результат */}
       {checked && cfg && Icon && (
         <div ref={resultRef} className={cn('rounded-lg border p-4 flex flex-col gap-2', cfg.bg)}>
           <div className={cn('flex items-center gap-2 font-semibold', cfg.color)}>
@@ -136,22 +132,18 @@ export function TypingInput({ correctAnswer, hint, intervals, onRate, disabled }
             {cfg.label}
           </div>
           <div className="text-sm">
-            <span className="text-muted-foreground">Правильный ответ: </span>
-            <span className="font-medium">{correctAnswer}</span>
+            <span className="text-muted-foreground">{correctAnswer}</span>
           </div>
           {(result === 'almost' || result === 'wrong') && (
             <div className="text-sm">
-              <span className="text-muted-foreground">Твой ответ: </span>
               <span className="line-through opacity-60">{value}</span>
             </div>
           )}
         </div>
       )}
 
-      {/* Действия после проверки */}
       {checked && (
         <div className="flex flex-col gap-3">
-          {/* Главная кнопка «Далее» — авто-оценка */}
           <Button
             ref={nextBtnRef}
             size="lg"
@@ -159,18 +151,16 @@ export function TypingInput({ correctAnswer, hint, intervals, onRate, disabled }
             disabled={disabled}
             className="w-full"
           >
-            Далее
+            {t('btn_next')}
             <ArrowRight className="ml-2 size-4" />
             <kbd className="ml-2 rounded bg-black/20 px-1.5 py-0.5 text-xs font-mono hidden sm:inline">
               Enter
             </kbd>
           </Button>
 
-          {/* Изменить оценку вручную */}
           <details className="group">
             <summary className="text-xs text-muted-foreground cursor-pointer select-none text-center list-none flex items-center justify-center gap-1 hover:text-foreground transition-colors">
-              <span>Изменить оценку</span>
-              <span className="group-open:rotate-180 transition-transform inline-block">▾</span>
+              <span>▾</span>
             </summary>
             <div className="mt-3">
               <RatingButtons
