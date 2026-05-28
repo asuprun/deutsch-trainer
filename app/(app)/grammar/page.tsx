@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { BookOpen, ChevronLeft, Dumbbell } from 'lucide-react';
+import { BookOpen, ChevronLeft, Dumbbell, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -82,6 +82,19 @@ export default function GrammarPage() {
     }
     load();
   }, [t]);
+
+  async function deleteNote(id: string) {
+    if (!window.confirm(t('grammar_delete_confirm'))) return;
+    try {
+      const res = await fetch(`/api/grammar/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setNotes((prev) => prev.filter((n) => n.id !== id));
+      if (activeNote?.id === id) { setActiveNote(null); setExerciseMode(null); }
+      toast.success(t('grammar_deleted'));
+    } catch {
+      toast.error(t('grammar_delete_error'));
+    }
+  }
 
   const filtered = search
     ? notes.filter(
@@ -184,8 +197,8 @@ export default function GrammarPage() {
                       </div>
                     )}
 
-                    {/* Quick-launch exercises from within the rule */}
-                    <div className="mt-4 pt-3 border-t">
+                    {/* Quick-launch exercises + delete */}
+                    <div className="mt-4 pt-3 border-t flex items-center justify-between gap-2">
                       <Button
                         size="sm"
                         variant="outline"
@@ -197,6 +210,15 @@ export default function GrammarPage() {
                       >
                         <Dumbbell className="size-3.5 mr-1.5" />
                         {t('grammar_practice_btn')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => deleteNote(note.id)}
+                      >
+                        <Trash2 className="size-3.5 mr-1.5" />
+                        {t('btn_delete')}
                       </Button>
                     </div>
                   </AccordionContent>
@@ -292,17 +314,26 @@ export default function GrammarPage() {
                         </p>
                       )}
                     </div>
-                    <Button
-                      size="sm"
-                      className="shrink-0"
-                      onClick={() => {
-                        setActiveNote({ id: note.id, title: note.title });
-                        setExerciseMode(null);
-                      }}
-                    >
-                      <Dumbbell className="size-3.5 mr-1.5" />
-                      {t('grammar_train_btn')}
-                    </Button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setActiveNote({ id: note.id, title: note.title });
+                          setExerciseMode(null);
+                        }}
+                      >
+                        <Dumbbell className="size-3.5 mr-1.5" />
+                        {t('grammar_train_btn')}
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => deleteNote(note.id)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))
               )}

@@ -85,11 +85,11 @@ export function ReviewCard({ card, flipped, autoTts = true }: Props) {
         {/* FRONT */}
         <div className="w-full [backface-visibility:hidden] bg-background">
           <div className="flex flex-col items-center gap-6 w-full">
-            <div className="flex items-baseline justify-center gap-3 flex-wrap text-center">
+            <div className="flex items-baseline justify-center gap-3 flex-wrap text-center w-full">
               {card.gender && (
                 <span className={cn('font-serif text-3xl sm:text-4xl', genderClass)}>{card.gender}</span>
               )}
-              <h2 className="font-serif text-4xl sm:text-5xl font-medium leading-tight tracking-tight">
+              <h2 className="font-serif text-4xl sm:text-5xl font-medium leading-tight tracking-tight min-w-0 [overflow-wrap:anywhere]">
                 {card.front}
               </h2>
               <TTSButton text={card.front} size="icon" />
@@ -110,11 +110,11 @@ export function ReviewCard({ card, flipped, autoTts = true }: Props) {
         {/* BACK */}
         <div className="absolute inset-0 w-full [backface-visibility:hidden] [transform:rotateY(180deg)] bg-background">
           <div className="flex flex-col items-center gap-6 w-full">
-            <div className="flex items-baseline justify-center gap-3 flex-wrap text-center">
+            <div className="flex items-baseline justify-center gap-3 flex-wrap text-center w-full">
               {card.gender && (
                 <span className={cn('font-serif text-3xl sm:text-4xl', genderClass)}>{card.gender}</span>
               )}
-              <h2 className="font-serif text-4xl sm:text-5xl font-medium leading-tight tracking-tight">
+              <h2 className="font-serif text-4xl sm:text-5xl font-medium leading-tight tracking-tight min-w-0 [overflow-wrap:anywhere]">
                 {card.front}
               </h2>
               <TTSButton text={card.front} size="icon" />

@@ -5,6 +5,7 @@ import { Loader2, ChevronLeft, RotateCw, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n/context';
 
@@ -13,6 +14,7 @@ import { useI18n } from '@/lib/i18n/context';
 type Exercise = {
   sentence: string;
   answer: string;
+  lemma?: string;
   hint?: string;
   explanation: string;
 };
@@ -36,7 +38,17 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
   const [input, setInput] = useState('');
   const [checkState, setCheckState] = useState<CheckState>(null);
   const [score, setScore] = useState(0);
+  const [fromCache, setFromCache] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // ── Фокус + scroll into view ────────────────────────────────────────────────
+
+  function focusInput(delay = 100) {
+    setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, delay);
+  }
 
   // ── Load exercises ──────────────────────────────────────────────────────────
 
@@ -58,12 +70,13 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
         if (!data.exercises?.length) throw new Error('No exercises');
         if (!cancelled) {
           setExercises(data.exercises);
+          setFromCache(!!data.cached);
           setIdx(0);
           setInput('');
           setCheckState(null);
           setScore(0);
           setStatus('active');
-          setTimeout(() => inputRef.current?.focus(), 100);
+          focusInput(100);
         }
       } catch {
         if (!cancelled) setStatus('error');
@@ -92,7 +105,7 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
       setIdx((i) => i + 1);
       setInput('');
       setCheckState(null);
-      setTimeout(() => inputRef.current?.focus(), 60);
+      focusInput(60);
     }
   }
 
@@ -104,7 +117,7 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
     setCheckState(null);
     setScore(0);
     setStatus('active');
-    setTimeout(() => inputRef.current?.focus(), 60);
+    focusInput(60);
   }
 
   // ── Render: loading ─────────────────────────────────────────────────────────
@@ -171,7 +184,7 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
   const parts = ex.sentence.split('___');
 
   return (
-    <div className="flex flex-col gap-5 max-w-xl">
+    <div className="flex flex-col gap-4 max-w-xl">
       {/* Progress row */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={onBack}>
@@ -183,14 +196,19 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
         <span className="text-xs tabular-nums text-muted-foreground shrink-0">
           {idx + 1} / {exercises.length}
         </span>
+        {fromCache && (
+          <Badge variant="outline" className="text-xs shrink-0">
+            {t('gramex_cached')}
+          </Badge>
+        )}
       </div>
 
       {/* Topic label */}
       <p className="text-sm font-medium text-muted-foreground">{noteTitle}</p>
 
       {/* Sentence card */}
-      <div className="rounded-xl border bg-card px-6 py-5 text-center">
-        <p className="text-xl leading-relaxed font-serif">
+      <div className="rounded-xl border bg-card px-5 py-4 text-center">
+        <p className="text-xl leading-relaxed font-serif [overflow-wrap:anywhere]">
           {parts[0]}
           {checkState === null && (
             <span className="inline-block w-16 mx-1 border-b-2 border-dashed border-primary/50 align-bottom" />
@@ -212,16 +230,26 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
         </p>
       </div>
 
-      {/* Hint (only before check) */}
-      {ex.hint && checkState === null && (
-        <p className="text-sm text-center text-muted-foreground">💡 {ex.hint}</p>
+      {/* Lemma + hint (only before check) */}
+      {checkState === null && (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {ex.lemma && (
+            <div className="flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-3 py-1">
+              <span className="text-xs text-muted-foreground">{t('gramex_lemma')}:</span>
+              <span className="text-sm font-semibold font-serif">{ex.lemma}</span>
+            </div>
+          )}
+          {ex.hint && (
+            <p className="text-sm text-muted-foreground">💡 {ex.hint}</p>
+          )}
+        </div>
       )}
 
       {/* Feedback (after check) */}
       {checkState !== null && (
         <div
           className={cn(
-            'rounded-lg border p-4 text-sm',
+            'rounded-lg border p-3 text-sm',
             checkState === 'correct'
               ? 'bg-emerald-500/10 border-emerald-500/30'
               : 'bg-rose-500/10 border-rose-500/30',
@@ -258,6 +286,9 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') check();
+            }}
+            onFocus={() => {
+              inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }}
             placeholder={t('gramex_placeholder')}
             className="text-base"

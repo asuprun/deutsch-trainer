@@ -224,6 +224,9 @@ export const translations = {
     grammar_back_to_topics: 'К темам',
     grammar_train_btn: 'Тренировать',
     grammar_load_error: 'Не удалось загрузить грамматику',
+    grammar_delete_confirm: 'Удалить это правило? Кэш упражнений тоже будет удалён.',
+    grammar_deleted: 'Правило удалено',
+    grammar_delete_error: 'Не удалось удалить',
     // Практика (чат)
     practice_title: 'Чат-практика',
     practice_subtitle: 'Выбери тему — Gemini сыграет роль собеседника и будет исправлять твои ошибки',
@@ -352,6 +355,8 @@ export const translations = {
     gramex_check: 'Проверить',
     gramex_next: 'Далее →',
     gramex_finish: 'Завершить',
+    gramex_lemma: 'Слово',
+    gramex_cached: 'кэш',
     // Конструктор предложений
     grambld_generating: 'Генерирую упражнения…',
     grambld_error: 'Не удалось сгенерировать упражнения',
@@ -661,6 +666,9 @@ export const translations = {
     grammar_back_to_topics: 'Back to topics',
     grammar_train_btn: 'Train',
     grammar_load_error: 'Could not load grammar',
+    grammar_delete_confirm: 'Delete this rule? The exercises cache will also be removed.',
+    grammar_deleted: 'Rule deleted',
+    grammar_delete_error: 'Could not delete',
     // Practice (chat)
     practice_title: 'Chat practice',
     practice_subtitle: 'Choose a topic — Gemini will play a conversation partner and correct your mistakes',
@@ -789,6 +797,8 @@ export const translations = {
     gramex_check: 'Check',
     gramex_next: 'Next →',
     gramex_finish: 'Finish',
+    gramex_lemma: 'Word',
+    gramex_cached: 'cached',
     // Sentence builder
     grambld_generating: 'Generating exercises…',
     grambld_error: 'Could not generate exercises',
@@ -1098,6 +1108,9 @@ export const translations = {
     grammar_back_to_topics: 'Zu den Themen',
     grammar_train_btn: 'Trainieren',
     grammar_load_error: 'Grammatik konnte nicht geladen werden',
+    grammar_delete_confirm: 'Diese Regel löschen? Der Übungs-Cache wird ebenfalls gelöscht.',
+    grammar_deleted: 'Regel gelöscht',
+    grammar_delete_error: 'Konnte nicht löschen',
     // Praxis (Chat)
     practice_title: 'Chat-Praxis',
     practice_subtitle: 'Wähle ein Thema — Gemini spielt einen Gesprächspartner und korrigiert deine Fehler',
@@ -1226,6 +1239,8 @@ export const translations = {
     gramex_check: 'Prüfen',
     gramex_next: 'Weiter →',
     gramex_finish: 'Beenden',
+    gramex_lemma: 'Wort',
+    gramex_cached: 'Cache',
     // Satzbausteine
     grambld_generating: 'Übungen werden generiert…',
     grambld_error: 'Übungen konnten nicht generiert werden',
