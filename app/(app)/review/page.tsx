@@ -106,9 +106,13 @@ export default function ReviewPage() {
     [current, submitting, advance],
   );
 
-  // Клавиши — только в режиме карточек
+  // Клавиши — только в режиме карточек (или когда grammar_rule принудительно в cards)
   useEffect(() => {
-    if (status !== 'active' || mode !== 'cards') return;
+    if (status !== 'active') return;
+    const card = queue[idx];
+    const isCards = mode === 'cards' ||
+      (mode === 'typing' && (card?.kind === 'grammar_rule' || card?.kind === 'sentence'));
+    if (!isCards) return;
     function onKey(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === ' ' || e.key === 'Spacebar') {
@@ -188,6 +192,12 @@ export default function ReviewPage() {
 
   if (!current) return null;
 
+  // Для grammar_rule и sentence — всегда режим карточки (ввод не применим)
+  const effectiveMode: Mode =
+    mode === 'typing' && (current.kind === 'grammar_rule' || current.kind === 'sentence')
+      ? 'cards'
+      : mode;
+
   return (
     // h-[100dvh] = динамический viewport: сжимается когда открыта клавиатура,
     // восстанавливается когда закрывается — без ручного скролла
@@ -242,7 +252,7 @@ export default function ReviewPage() {
       <main className="flex-1 min-h-0 overflow-y-auto">
         <div className="flex flex-col items-center justify-center min-h-full p-4 gap-6">
           {/* Карточка — в режиме ввода показываем только лицевую сторону до проверки */}
-          {mode === 'cards' ? (
+          {effectiveMode === 'cards' ? (
             <SwipeCard
               onSwipeLeft={flipped ? () => handleRate(1) : undefined}
               onSwipeRight={flipped ? () => handleRate(4) : () => setFlipped(true)}
@@ -256,14 +266,14 @@ export default function ReviewPage() {
             <ReviewCard card={current} flipped={false} />
           )}
 
-          {mode === 'cards' && !flipped && (
+          {effectiveMode === 'cards' && !flipped && (
             <Button size="lg" onClick={() => setFlipped(true)}>
               {t('review_show_answer')}
               <kbd className="ml-2 rounded bg-black/20 px-1.5 py-0.5 text-xs font-mono hidden sm:inline">Space</kbd>
             </Button>
           )}
 
-          {mode === 'typing' && (
+          {effectiveMode === 'typing' && (
             <TypingInput
               key={current.id}
               correctAnswer={current.back}
@@ -277,7 +287,7 @@ export default function ReviewPage() {
       </main>
 
       {/* Оценки — всегда внизу экрана, не в скролл-зоне */}
-      {mode === 'cards' && flipped && (
+      {effectiveMode === 'cards' && flipped && (
         <footer className="shrink-0 border-t p-4 sm:p-6 bg-background/95 backdrop-blur">
           <div className="max-w-3xl mx-auto">
             <RatingButtons intervals={current.intervals} onRate={handleRate} disabled={submitting} />
