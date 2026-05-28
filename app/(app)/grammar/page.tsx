@@ -7,6 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -63,6 +71,8 @@ export default function GrammarPage() {
   const [tab, setTab] = useState<Tab>('rules');
   const [activeNote, setActiveNote] = useState<{ id: string; title: string } | null>(null);
   const [exerciseMode, setExerciseMode] = useState<ExerciseMode | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -83,16 +93,20 @@ export default function GrammarPage() {
     load();
   }, [t]);
 
-  async function deleteNote(id: string) {
-    if (!window.confirm(t('grammar_delete_confirm'))) return;
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      const res = await fetch(`/api/grammar/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/grammar/${deleteTarget.id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setNotes((prev) => prev.filter((n) => n.id !== id));
-      if (activeNote?.id === id) { setActiveNote(null); setExerciseMode(null); }
+      setNotes((prev) => prev.filter((n) => n.id !== deleteTarget.id));
+      if (activeNote?.id === deleteTarget.id) { setActiveNote(null); setExerciseMode(null); }
       toast.success(t('grammar_deleted'));
+      setDeleteTarget(null);
     } catch {
       toast.error(t('grammar_delete_error'));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -215,7 +229,7 @@ export default function GrammarPage() {
                         size="sm"
                         variant="ghost"
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => deleteNote(note.id)}
+                        onClick={() => setDeleteTarget({ id: note.id, title: note.title })}
                       >
                         <Trash2 className="size-3.5 mr-1.5" />
                         {t('btn_delete')}
@@ -329,7 +343,7 @@ export default function GrammarPage() {
                         size="icon"
                         variant="ghost"
                         className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => deleteNote(note.id)}
+                        onClick={() => setDeleteTarget({ id: note.id, title: note.title })}
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -341,6 +355,28 @@ export default function GrammarPage() {
           )}
         </>
       )}
+      {/* ── Confirm delete dialog ── */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>{t('grammar_delete_title')}</DialogTitle>
+            <DialogDescription>
+              {deleteTarget?.title && (
+                <span className="block font-medium text-foreground mb-1">{deleteTarget.title}</span>
+              )}
+              {t('grammar_delete_confirm')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              {t('btn_cancel')}
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
+              {deleting ? t('btn_loading') : t('btn_delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

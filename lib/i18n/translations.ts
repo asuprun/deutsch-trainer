@@ -224,7 +224,8 @@ export const translations = {
     grammar_back_to_topics: 'К темам',
     grammar_train_btn: 'Тренировать',
     grammar_load_error: 'Не удалось загрузить грамматику',
-    grammar_delete_confirm: 'Удалить это правило? Кэш упражнений тоже будет удалён.',
+    grammar_delete_title: 'Удалить правило?',
+    grammar_delete_confirm: 'Кэш упражнений тоже будет удалён. Это действие нельзя отменить.',
     grammar_deleted: 'Правило удалено',
     grammar_delete_error: 'Не удалось удалить',
     // Практика (чат)
@@ -666,7 +667,8 @@ export const translations = {
     grammar_back_to_topics: 'Back to topics',
     grammar_train_btn: 'Train',
     grammar_load_error: 'Could not load grammar',
-    grammar_delete_confirm: 'Delete this rule? The exercises cache will also be removed.',
+    grammar_delete_title: 'Delete rule?',
+    grammar_delete_confirm: 'The exercises cache will also be removed. This cannot be undone.',
     grammar_deleted: 'Rule deleted',
     grammar_delete_error: 'Could not delete',
     // Practice (chat)
@@ -1108,7 +1110,8 @@ export const translations = {
     grammar_back_to_topics: 'Zu den Themen',
     grammar_train_btn: 'Trainieren',
     grammar_load_error: 'Grammatik konnte nicht geladen werden',
-    grammar_delete_confirm: 'Diese Regel löschen? Der Übungs-Cache wird ebenfalls gelöscht.',
+    grammar_delete_title: 'Regel löschen?',
+    grammar_delete_confirm: 'Der Übungs-Cache wird ebenfalls gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.',
     grammar_deleted: 'Regel gelöscht',
     grammar_delete_error: 'Konnte nicht löschen',
     // Praxis (Chat)
