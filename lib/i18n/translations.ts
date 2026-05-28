@@ -447,6 +447,13 @@ export const translations = {
     settings_save_error: 'Не удалось сохранить',
     // Карточки
     cards_check_gemini: 'Проверь лимит Gemini API',
+    cards_find_dupes: 'Дубли',
+    cards_dupes_title: 'Возможные дубли',
+    cards_dupes_subtitle: 'Карточки со схожим словом на немецком (порог: 75%)',
+    cards_dupes_empty: 'Дублей не найдено 🎉',
+    cards_dupes_scanning: 'Ищу дубли…',
+    cards_dupes_similarity: 'совпадение',
+    cards_dupes_error: 'Не удалось найти дубли. Выполни SQL-функцию find_duplicate_cards.sql в Supabase.',
     // ИИ — нет данных
     ai_no_data: 'Нет данных. Добавь таблицу api_usage_log в Supabase.',
     // Диалог создания
@@ -890,6 +897,13 @@ export const translations = {
     settings_save_error: 'Could not save',
     // Cards
     cards_check_gemini: 'Check Gemini API limit',
+    cards_find_dupes: 'Dupes',
+    cards_dupes_title: 'Possible duplicates',
+    cards_dupes_subtitle: 'Cards with similar German word (threshold: 75%)',
+    cards_dupes_empty: 'No duplicates found 🎉',
+    cards_dupes_scanning: 'Scanning for duplicates…',
+    cards_dupes_similarity: 'similarity',
+    cards_dupes_error: 'Could not find duplicates. Run find_duplicate_cards.sql in Supabase.',
     // AI — no data
     ai_no_data: 'No data. Add the api_usage_log table to Supabase.',
     // Create dialog
@@ -1333,6 +1347,13 @@ export const translations = {
     settings_save_error: 'Konnte nicht speichern',
     // Karten
     cards_check_gemini: 'Gemini-API-Limit prüfen',
+    cards_find_dupes: 'Duplikate',
+    cards_dupes_title: 'Mögliche Duplikate',
+    cards_dupes_subtitle: 'Karten mit ähnlichem deutschem Wort (Schwellenwert: 75%)',
+    cards_dupes_empty: 'Keine Duplikate gefunden 🎉',
+    cards_dupes_scanning: 'Duplikate werden gesucht…',
+    cards_dupes_similarity: 'Ähnlichkeit',
+    cards_dupes_error: 'Duplikate konnten nicht gefunden werden. Führe find_duplicate_cards.sql in Supabase aus.',
     // KI — keine Daten
     ai_no_data: 'Keine Daten. Tabelle api_usage_log zu Supabase hinzufügen.',
     // Erstellungsdialog

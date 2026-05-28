@@ -3,11 +3,18 @@
 import React, { useEffect, useState, useCallback, Fragment, useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Loader2, Pencil, Trash2, ChevronLeft, ChevronRight, X, Check, ExternalLink, Plus, Sparkles } from 'lucide-react';
+import { Loader2, Pencil, Trash2, ChevronLeft, ChevronRight, X, Check, ExternalLink, Plus, Sparkles, ScanSearch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { formatInterval } from '@/lib/format/intervals';
 import { CreateCardDialog } from '@/components/create-card-dialog';
@@ -70,6 +77,17 @@ export default function CardsPage() {
   const [kind, setKind] = useState<string>('all');
   const [tag, setTag] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Duplicates
+  type DupePair = {
+    id1: string; front1: string; back1: string; kind1: string;
+    id2: string; front2: string; back2: string; kind2: string;
+    score: number;
+  };
+  const [dupesOpen, setDupesOpen] = useState(false);
+  const [dupesLoading, setDupesLoading] = useState(false);
+  const [dupePairs, setDupePairs] = useState<DupePair[]>([]);
+  const [dupesError, setDupesError] = useState(false);
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
   const [enrichingBatch, setEnrichingBatch] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -268,6 +286,36 @@ export default function CardsPage() {
     }
   }
 
+  // ── Find duplicates ──────────────────────────────────────────────────────────
+
+  async function openDupes() {
+    setDupesOpen(true);
+    setDupesError(false);
+    setDupesLoading(true);
+    try {
+      const res = await fetch('/api/cards/duplicates');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setDupePairs(data.pairs ?? []);
+    } catch {
+      setDupesError(true);
+    } finally {
+      setDupesLoading(false);
+    }
+  }
+
+  async function deleteDupe(id: string) {
+    try {
+      const res = await fetch(`/api/cards/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setDupePairs((prev) => prev.filter((p) => p.id1 !== id && p.id2 !== id));
+      toast.success(t('cards_deleted'));
+      fetchCards();
+    } catch {
+      toast.error(t('cards_delete_error'));
+    }
+  }
+
   // ── Delete ───────────────────────────────────────────────────────────────────
 
   async function handleDelete(id: string) {
@@ -320,21 +368,32 @@ export default function CardsPage() {
         </div>
         <div className="flex items-center gap-2">
           {cards.length > 0 && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleEnrichBatch}
-              disabled={enrichingBatch || loading}
-            >
-              {enrichingBatch ? (
-                <Loader2 className="size-4 mr-1.5 animate-spin" />
-              ) : (
-                <Sparkles className="size-4 mr-1.5" />
-              )}
-              {enrichingBatch
-                ? t('cards_enriching')
-                : `${t('cards_enrich_batch')}${unenrichedCount ? ` (${unenrichedCount})` : ''}`}
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={openDupes}
+                title={t('cards_find_dupes')}
+              >
+                <ScanSearch className="size-4 mr-1.5" />
+                {t('cards_find_dupes')}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleEnrichBatch}
+                disabled={enrichingBatch || loading}
+              >
+                {enrichingBatch ? (
+                  <Loader2 className="size-4 mr-1.5 animate-spin" />
+                ) : (
+                  <Sparkles className="size-4 mr-1.5" />
+                )}
+                {enrichingBatch
+                  ? t('cards_enriching')
+                  : `${t('cards_enrich_batch')}${unenrichedCount ? ` (${unenrichedCount})` : ''}`}
+              </Button>
+            </>
           )}
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4 mr-1.5" />
@@ -659,6 +718,75 @@ export default function CardsPage() {
         onOpenChange={setCreateOpen}
         onCreated={fetchCards}
       />
+
+      {/* ── Duplicates dialog ── */}
+      <Dialog open={dupesOpen} onOpenChange={setDupesOpen}>
+        <DialogContent showCloseButton className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('cards_dupes_title')}</DialogTitle>
+            <DialogDescription>{t('cards_dupes_subtitle')}</DialogDescription>
+          </DialogHeader>
+
+          {dupesLoading && (
+            <div className="flex items-center justify-center gap-2 py-10">
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">{t('cards_dupes_scanning')}</span>
+            </div>
+          )}
+
+          {!dupesLoading && dupesError && (
+            <p className="text-sm text-destructive py-6 text-center">{t('cards_dupes_error')}</p>
+          )}
+
+          {!dupesLoading && !dupesError && dupePairs.length === 0 && (
+            <p className="text-center py-10 text-muted-foreground">{t('cards_dupes_empty')}</p>
+          )}
+
+          {!dupesLoading && !dupesError && dupePairs.length > 0 && (
+            <div className="flex flex-col divide-y">
+              {dupePairs.map((pair) => (
+                <div key={`${pair.id1}-${pair.id2}`} className="py-3 flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      {Math.round(pair.score * 100)}% {t('cards_dupes_similarity')}
+                    </span>
+                  </div>
+                  {/* Карточка 1 */}
+                  <div className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{pair.front1}</p>
+                      <p className="text-xs text-muted-foreground truncate">{pair.back1}</p>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-7 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => deleteDupe(pair.id1)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                  {/* Карточка 2 */}
+                  <div className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{pair.front2}</p>
+                      <p className="text-xs text-muted-foreground truncate">{pair.back2}</p>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-7 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => deleteDupe(pair.id2)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
