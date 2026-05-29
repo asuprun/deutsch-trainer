@@ -73,8 +73,8 @@ export async function POST(req: Request) {
 ПРАВИЛО: ${note.explanation}${examplesStr}
 
 ТРЕБОВАНИЯ:
-- sentence: правильное немецкое предложение по данной теме
-- words: ВСЕ слова предложения в СЛУЧАЙНОМ порядке (разбей по пробелам, знаки препинания — отдельный элемент)
+- sentence: правильное немецкое предложение по данной теме. БЕЗ знаков препинания в конце (не добавляй точку, восклицательный или вопросительный знак).
+- words: массив НЕ ИСПОЛЬЗУЕТСЯ — его значение будет вычислено автоматически. Передай просто пустой массив [].
 - translation: перевод sentence на русский
 - explanation: объяснение порядка слов / грамматики, 1-2 предложения на русском
 - Предложения разной сложности, все связаны с темой`.trim();
@@ -94,7 +94,22 @@ export async function POST(req: Request) {
       return JSON.parse(res.response.text());
     });
 
-    return NextResponse.json({ exercises: data.exercises ?? [] });
+    // Принудительно выводим words из sentence — не доверяем Gemini
+    // Это исключает дистракторы и несовпадение знаков препинания
+    const exercises = (data.exercises ?? []).map(
+      (ex: { sentence: string; translation: string; explanation: string }) => {
+        const sentence = ex.sentence.replace(/[.!?]+$/, '').trim();
+        const words = sentence.split(' ');
+        // Тасуем Fisher–Yates
+        for (let i = words.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [words[i], words[j]] = [words[j], words[i]];
+        }
+        return { sentence, words, translation: ex.translation, explanation: ex.explanation };
+      },
+    );
+
+    return NextResponse.json({ exercises });
   } catch (e) {
     console.error('[grammar/sentence-builder]', e);
     return err('GEMINI_ERROR', e instanceof Error ? e.message : 'Gemini error', 500);
