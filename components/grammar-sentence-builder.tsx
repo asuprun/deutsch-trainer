@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Loader2, ChevronLeft, RotateCw, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n/context';
 
@@ -36,6 +37,7 @@ export function GrammarSentenceBuilder({ noteId, noteTitle, onBack }: Props) {
   const [available, setAvailable] = useState<string[]>([]);
   const [checkState, setCheckState] = useState<CheckState>(null);
   const [score, setScore] = useState(0);
+  const [fromCache, setFromCache] = useState(false);
 
   // ── Load exercises ──────────────────────────────────────────────────────────
 
@@ -64,6 +66,7 @@ export function GrammarSentenceBuilder({ noteId, noteTitle, onBack }: Props) {
         if (!data.exercises?.length) throw new Error('No exercises');
         if (!cancelled) {
           setExercises(data.exercises);
+          setFromCache(!!data.cached);
           setScore(0);
           initExercise(data.exercises, 0);
           setStatus('active');
@@ -193,6 +196,11 @@ export function GrammarSentenceBuilder({ noteId, noteTitle, onBack }: Props) {
         <span className="text-xs tabular-nums text-muted-foreground shrink-0">
           {idx + 1} / {exercises.length}
         </span>
+        {fromCache && (
+          <Badge variant="outline" className="text-xs shrink-0">
+            {t('gramex_cached')}
+          </Badge>
+        )}
       </div>
 
       {/* Topic + task label */}

@@ -6,6 +6,8 @@ import { getSupabaseAdmin } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 
+const CACHE_TTL_DAYS = 7;
+
 function err(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
 }
@@ -60,6 +62,35 @@ export async function POST(req: Request) {
   if (dbErr) return err('DB_ERROR', dbErr.message, 500);
   if (!note) return err('NOT_FOUND', 'Grammar note not found', 404);
 
+  // ── Проверяем кэш ─────────────────────────────────────────────────────────
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - CACHE_TTL_DAYS);
+
+  const { data: cached } = await db
+    .from('grammar_exercises_cache')
+    .select('exercises')
+    .eq('grammar_note_id', grammar_note_id)
+    .eq('exercise_type', 'builder')
+    .gte('created_at', cutoff.toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (cached?.exercises) {
+    // Перетасовываем слова заново при каждой отдаче из кэша
+    type CachedEx = { sentence: string; words: string[]; translation: string; explanation: string };
+    const exercises = (cached.exercises as CachedEx[]).map((ex) => {
+      const words = [...ex.words];
+      for (let i = words.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [words[i], words[j]] = [words[j], words[i]];
+      }
+      return { ...ex, words };
+    });
+    return NextResponse.json({ exercises, cached: true });
+  }
+
   const examplesStr =
     Array.isArray(note.examples) && note.examples.length
       ? `\nПРИМЕРЫ:\n${(note.examples as { de: string; ru: string }[])
@@ -109,7 +140,14 @@ export async function POST(req: Request) {
       },
     );
 
-    return NextResponse.json({ exercises });
+    // ── Сохраняем в кэш (fire-and-forget) ──────────────────────────────────
+    void db.from('grammar_exercises_cache')
+      .insert({ grammar_note_id, exercise_type: 'builder', exercises })
+      .then(({ error }) => {
+        if (error) console.error('[grammar/sentence-builder] cache write error', error);
+      });
+
+    return NextResponse.json({ exercises, cached: false });
   } catch (e) {
     console.error('[grammar/sentence-builder]', e);
     return err('GEMINI_ERROR', e instanceof Error ? e.message : 'Gemini error', 500);

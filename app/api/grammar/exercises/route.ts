@@ -64,6 +64,7 @@ export async function POST(req: Request) {
     .from('grammar_exercises_cache')
     .select('exercises')
     .eq('grammar_note_id', grammar_note_id)
+    .eq('exercise_type', 'fill')
     .gte('created_at', cutoff.toISOString())
     .order('created_at', { ascending: false })
     .limit(1)
@@ -124,7 +125,7 @@ export async function POST(req: Request) {
 
     // ── Сохраняем в кэш (fire-and-forget) ────────────────────────────────────
     void db.from('grammar_exercises_cache')
-      .insert({ grammar_note_id, exercises })
+      .insert({ grammar_note_id, exercise_type: 'fill', exercises })
       .then(({ error }) => {
         if (error) console.error('[grammar/exercises] cache write error', error);
       });
