@@ -38,6 +38,7 @@ export function GrammarSentenceBuilder({ noteId, noteTitle, onBack }: Props) {
   const [checkState, setCheckState] = useState<CheckState>(null);
   const [score, setScore] = useState(0);
   const [fromCache, setFromCache] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string>('');
 
   // ── Load exercises ──────────────────────────────────────────────────────────
 
@@ -71,8 +72,11 @@ export function GrammarSentenceBuilder({ noteId, noteTitle, onBack }: Props) {
           initExercise(data.exercises, 0);
           setStatus('active');
         }
-      } catch {
-        if (!cancelled) setStatus('error');
+      } catch (e) {
+        if (!cancelled) {
+          setErrorMsg(e instanceof Error ? e.message : String(e));
+          setStatus('error');
+        }
       }
     }
     load();
@@ -136,14 +140,19 @@ export function GrammarSentenceBuilder({ noteId, noteTitle, onBack }: Props) {
 
   if (status === 'error') {
     return (
-      <div className="flex flex-col items-center gap-4 py-16 text-center">
+      <div className="flex flex-col items-center gap-4 py-16 text-center max-w-sm">
         <p className="text-destructive">{t('grambld_error')}</p>
+        {errorMsg && (
+          <p className="text-xs text-muted-foreground font-mono bg-muted rounded px-3 py-2 text-left w-full">
+            {errorMsg}
+          </p>
+        )}
         <div className="flex gap-2">
           <Button onClick={onBack} variant="outline">
             <ChevronLeft className="size-4 mr-1" />
             {t('grambld_back')}
           </Button>
-          <Button onClick={() => setStatus('loading')}>
+          <Button onClick={() => { setErrorMsg(''); setStatus('loading'); }}>
             <RotateCw className="size-4 mr-1.5" />
             {t('grambld_retry')}
           </Button>
