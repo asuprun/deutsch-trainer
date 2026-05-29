@@ -29,12 +29,11 @@ const responseSchema: ResponseSchema = {
       items: {
         type: SchemaType.OBJECT,
         properties: {
-          words:       { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
           sentence:    { type: SchemaType.STRING },
           translation: { type: SchemaType.STRING },
           explanation: { type: SchemaType.STRING },
         },
-        required: ['words', 'sentence', 'translation', 'explanation'],
+        required: ['sentence', 'translation', 'explanation'],
       },
     },
   },
@@ -104,10 +103,9 @@ export async function POST(req: Request) {
 ПРАВИЛО: ${note.explanation}${examplesStr}
 
 ТРЕБОВАНИЯ:
-- sentence: правильное немецкое предложение по данной теме. БЕЗ знаков препинания в конце (не добавляй точку, восклицательный или вопросительный знак).
-- words: массив НЕ ИСПОЛЬЗУЕТСЯ — его значение будет вычислено автоматически. Передай просто пустой массив [].
+- sentence: правильное немецкое предложение по данной теме, без знаков препинания в конце
 - translation: перевод sentence на русский
-- explanation: объяснение порядка слов / грамматики, 1-2 предложения на русском
+- explanation: объяснение порядка слов и грамматики, 1-2 предложения на русском
 - Предложения разной сложности, все связаны с темой`.trim();
 
   try {
