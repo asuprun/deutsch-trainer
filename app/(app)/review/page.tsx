@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Loader2, X, RotateCw, Home, FlipHorizontal2, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { ReviewCard, type ReviewCardData } from '@/components/review-card';
 import { SwipeCard } from '@/components/swipe-card';
 import { RatingButtons, type RatingIntervals } from '@/components/rating-buttons';
@@ -209,11 +208,7 @@ export default function ReviewPage() {
           </Link>
         </Button>
 
-        <div className="flex-1">
-          <Progress value={(idx / queue.length) * 100} className="h-2" />
-        </div>
-
-        <span className="text-sm tabular-nums text-muted-foreground mr-1">
+        <span className="flex-1 text-center text-sm tabular-nums text-muted-foreground">
           {idx + 1} / {queue.length}
         </span>
 
