@@ -198,9 +198,9 @@ export default function ReviewPage() {
       : mode;
 
   return (
-    // h-[100dvh] = динамический viewport: сжимается когда открыта клавиатура,
-    // восстанавливается когда закрывается — без ручного скролла
-    <div className="flex flex-col h-[100dvh]">
+    // fixed inset-0 вырывается из layout (pb-16), полностью перекрывает viewport
+    // и не даёт браузеру показывать page-level scroll
+    <div className="fixed inset-0 z-[60] flex flex-col bg-background">
       <header className="shrink-0 flex items-center gap-2 border-b px-4 py-3 sm:px-6">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/" aria-label={t('review_close_label')}>
