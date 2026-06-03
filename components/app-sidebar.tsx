@@ -48,7 +48,7 @@ const NAV_ITEM_DEFS: NavItemDef[] = [
   { href: '/settings', key: 'nav_settings', icon: Settings },
 ];
 
-const BOTTOM_NAV_HREFS = ['/', '/review', '/upload', '/cards'];
+const BOTTOM_NAV_HREFS = ['/', '/review', '/grammar', '/cards'];
 
 export function AppSidebar() {
   const pathname = usePathname();
