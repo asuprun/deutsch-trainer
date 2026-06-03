@@ -366,7 +366,7 @@ export default function CardsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">{t('cards_title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t('cards_subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {cards.length > 0 && (
             <>
               <Button
@@ -375,29 +375,35 @@ export default function CardsPage() {
                 onClick={openDupes}
                 title={t('cards_find_dupes')}
               >
-                <ScanSearch className="size-4 mr-1.5" />
-                {t('cards_find_dupes')}
+                <ScanSearch className="size-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">{t('cards_find_dupes')}</span>
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={handleEnrichBatch}
                 disabled={enrichingBatch || loading}
+                title={enrichingBatch ? t('cards_enriching') : t('cards_enrich_batch')}
               >
                 {enrichingBatch ? (
-                  <Loader2 className="size-4 mr-1.5 animate-spin" />
+                  <Loader2 className="size-4 animate-spin sm:mr-1.5" />
                 ) : (
-                  <Sparkles className="size-4 mr-1.5" />
+                  <Sparkles className="size-4 sm:mr-1.5" />
                 )}
-                {enrichingBatch
-                  ? t('cards_enriching')
-                  : `${t('cards_enrich_batch')}${unenrichedCount ? ` (${unenrichedCount})` : ''}`}
+                <span className="hidden sm:inline">
+                  {enrichingBatch
+                    ? t('cards_enriching')
+                    : `${t('cards_enrich_batch')}${unenrichedCount ? ` (${unenrichedCount})` : ''}`}
+                </span>
+                {!enrichingBatch && unenrichedCount > 0 && (
+                  <span className="sm:hidden text-xs tabular-nums ml-0.5">({unenrichedCount})</span>
+                )}
               </Button>
             </>
           )}
           <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4 mr-1.5" />
-            {t('cards_add')}
+            <Plus className="size-4 sm:mr-1.5" />
+            <span className="hidden sm:inline">{t('cards_add')}</span>
           </Button>
         </div>
       </header>
