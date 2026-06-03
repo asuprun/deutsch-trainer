@@ -42,7 +42,7 @@ export async function POST(req: Request) {
 
   const { data: existing, error: selErr } = await sb
     .from('sources')
-    .select('id, image_path, raw_extract')
+    .select('id, image_path, title, raw_extract')
     .eq('image_hash', inputHash)
     .maybeSingle();
   if (selErr) {
@@ -51,6 +51,10 @@ export async function POST(req: Request) {
   if (existing && existing.raw_extract) {
     const cached = extractPayloadSchema.safeParse(existing.raw_extract);
     if (cached.success) {
+      // Бэкфилл: если title ещё не сохранён — сохраняем summary
+      if (!existing.title && cached.data.summary) {
+        await sb.from('sources').update({ title: cached.data.summary }).eq('id', existing.id);
+      }
       return NextResponse.json({
         source_id: existing.id,
         image_path: existing.image_path,
@@ -101,6 +105,7 @@ export async function POST(req: Request) {
         image_path: imagePath,
         image_hash: inputHash,
         raw_extract: payload,
+        title: payload.summary || null,
       },
       { onConflict: 'image_hash' },
     )
