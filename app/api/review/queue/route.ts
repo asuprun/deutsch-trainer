@@ -14,6 +14,7 @@ export async function GET(req: Request) {
     ? Math.min(Math.max(1, limitRaw), MAX_LIMIT)
     : DEFAULT_LIMIT;
   const tag = url.searchParams.get('tag');
+  const sourceId = url.searchParams.get('source_id');
 
   const sb = getSupabaseAdmin();
   const nowIso = new Date().toISOString();
@@ -27,6 +28,7 @@ export async function GET(req: Request) {
     .limit(limit);
 
   if (tag) query = query.contains('tags', [tag]);
+  if (sourceId) query = query.eq('source_id', sourceId);
 
   const { data, error, count } = await query;
 

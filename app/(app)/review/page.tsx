@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Loader2, X, RotateCw, Home, FlipHorizontal2, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,8 @@ type Mode = 'cards' | 'typing';
 
 export default function ReviewPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sourceId = searchParams.get('source_id');
   const { t } = useI18n();
   const [status, setStatus] = useState<Status>('loading');
   const [queue, setQueue] = useState<QueueCard[]>([]);
@@ -41,7 +43,9 @@ export default function ReviewPage() {
     setStatus('loading');
     setError(null);
     try {
-      const res = await fetch('/api/review/queue?limit=20');
+      const qs = new URLSearchParams({ limit: '20' });
+      if (sourceId) qs.set('source_id', sourceId);
+      const res = await fetch(`/api/review/queue?${qs}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
@@ -60,7 +64,7 @@ export default function ReviewPage() {
       setStatus('error');
       setError(e instanceof Error ? e.message : t('review_load_error'));
     }
-  }, []);
+  }, [sourceId]);
 
   useEffect(() => {
     loadQueue();

@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FolderOpen } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { FolderOpen, GraduationCap } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/context';
 
 type SourceWithCounts = {
@@ -61,8 +62,8 @@ export function DecksClient({ sources }: { sources: SourceWithCounts[] }) {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {sources.map((source) => (
-            <Link key={source.id} href={`/cards?source_id=${source.id}`} className="group">
-              <Card className="h-full transition-shadow hover:shadow-md group-hover:border-primary/40">
+            <Card key={source.id} className="h-full transition-shadow hover:shadow-md flex flex-col">
+              <Link href={`/cards?source_id=${source.id}`} className="flex-1">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium leading-tight line-clamp-2">
                     {source.title ?? t('decks_untitled')}
@@ -71,7 +72,7 @@ export function DecksClient({ sources }: { sources: SourceWithCounts[] }) {
                     {formatDate(source.created_at)}
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pb-2">
                   <p className="text-sm text-muted-foreground">
                     {source.card_count} {cardCountLabel(source.card_count)}
                     {source.grammar_count > 0 && (
@@ -82,8 +83,18 @@ export function DecksClient({ sources }: { sources: SourceWithCounts[] }) {
                     )}
                   </p>
                 </CardContent>
-              </Card>
-            </Link>
+              </Link>
+              {source.card_count > 0 && (
+                <div className="px-6 pb-4">
+                  <Button asChild size="sm" className="w-full gap-2">
+                    <Link href={`/review?source_id=${source.id}`}>
+                      <GraduationCap className="size-3.5" />
+                      {t('decks_train')}
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </Card>
           ))}
         </div>
       )}

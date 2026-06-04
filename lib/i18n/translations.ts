@@ -297,6 +297,8 @@ export const translations = {
     decks_note1: 'заметка',
     decks_note234: 'заметки',
     decks_note5: 'заметок',
+    decks_train: 'Тренировать',
+    decks_no_due: 'Нет карт к повторению',
     // Логин
     login_description: 'Введи пароль для доступа',
     login_password_label: 'Пароль',
@@ -747,6 +749,8 @@ export const translations = {
     decks_note1: 'note',
     decks_note234: 'notes',
     decks_note5: 'notes',
+    decks_train: 'Practice',
+    decks_no_due: 'No cards due',
     // Login
     login_description: 'Enter password to access',
     login_password_label: 'Password',
@@ -1197,6 +1201,8 @@ export const translations = {
     decks_note1: 'Notiz',
     decks_note234: 'Notizen',
     decks_note5: 'Notizen',
+    decks_train: 'Üben',
+    decks_no_due: 'Keine fälligen Karten',
     // Login
     login_description: 'Passwort eingeben',
     login_password_label: 'Passwort',
