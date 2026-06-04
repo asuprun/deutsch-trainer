@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { useSavedTTS } from '@/lib/hooks/use-saved-tts';
 import { Download, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,6 +53,7 @@ function settingsToForm(s: SettingsData): FormState {
 
 export default function SettingsPage() {
   const { t } = useI18n();
+  const { setVoiceName } = useSavedTTS();
   const [form, setForm] = useState<FormState>(DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -94,6 +96,8 @@ export default function SettingsPage() {
 
       const updated: SettingsData = await res.json();
       setForm(settingsToForm(updated));
+      // Синхронизируем голос в localStorage — useSavedTTS читает его первым
+      if (updated.tts_voice) setVoiceName(updated.tts_voice);
       toast.success(t('settings_saved'));
     } catch (e) {
       toast.error(t('settings_save_error'), {
