@@ -256,7 +256,7 @@ function ReviewInner() {
       {/* min-h-0 + overflow-y-auto: скролл внутри оставшегося пространства.
           Внутренний div с min-h-full + justify-center: центрирует когда влезает,
           скроллится когда не влезает (после флипа с примерами). */}
-      <main className="flex-1 min-h-0 overflow-y-auto">
+      <main className="flex-1 min-h-0 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
         <div className="flex flex-col items-center justify-center min-h-full p-4 gap-6">
           {/* Карточка — в режиме ввода показываем только лицевую сторону до проверки */}
           {effectiveMode === 'cards' ? (
