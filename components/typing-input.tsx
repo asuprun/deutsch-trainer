@@ -64,14 +64,21 @@ export function TypingInput({ correctAnswer, hint, intervals, onRate, disabled }
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (!checked) handleCheck();
+      if (!checked) {
+        handleCheck();
+      } else if (result != null) {
+        // Enter на задизейбленном инпуте тоже переходит дальше
+        onRate(resultToGrade(result));
+      }
     }
   }
 
   useEffect(() => {
     if (!checked) return;
     function onKey(e: KeyboardEvent) {
-      if (e.target instanceof HTMLInputElement) return;
+      // Пропускаем только активные (не disabled) текстовые поля
+      if (e.target instanceof HTMLInputElement && !e.target.disabled) return;
+      if (e.target instanceof HTMLTextAreaElement) return;
       if (e.key === 'Enter' && result != null) {
         e.preventDefault();
         onRate(resultToGrade(result));
