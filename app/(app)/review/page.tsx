@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -26,6 +26,14 @@ type Status = 'loading' | 'empty' | 'active' | 'done' | 'error';
 type Mode = 'cards' | 'typing';
 
 export default function ReviewPage() {
+  return (
+    <Suspense>
+      <ReviewInner />
+    </Suspense>
+  );
+}
+
+function ReviewInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sourceId = searchParams.get('source_id');
