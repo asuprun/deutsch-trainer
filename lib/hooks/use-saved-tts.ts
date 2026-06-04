@@ -4,25 +4,30 @@ import { useEffect, useState } from 'react';
 
 const STORAGE_KEY = 'tts_voice_name';
 
+// Языковые коды вроде 'de-DE' — не имена голосов, их надо игнорировать
+function isRealVoiceName(s: string): boolean {
+  return s.length > 0 && !/^[a-z]{2}-[A-Z]{2}$/.test(s);
+}
+
 export function useSavedTTS() {
-  // Читаем localStorage синхронно при первом рендере —
-  // иначе useTTS успевает отработать с пустым voiceName и выбирает рандомный голос
+  // Читаем localStorage синхронно, но фильтруем языковые коды
   const [voiceName, setVoiceNameState] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem(STORAGE_KEY) ?? '';
+      const stored = localStorage.getItem(STORAGE_KEY) ?? '';
+      return isRealVoiceName(stored) ? stored : '';
     }
     return '';
   });
 
   useEffect(() => {
-    // Если в localStorage ничего нет — пробуем сервер
-    if (voiceName) return;
+    // Всегда синхронизируемся с сервером — он авторитетный источник голоса
     fetch('/api/settings')
       .then((r) => r.json())
       .then((d: { tts_voice?: string }) => {
-        if (d.tts_voice) {
-          setVoiceNameState(d.tts_voice);
-          localStorage.setItem(STORAGE_KEY, d.tts_voice);
+        const name = d.tts_voice ?? '';
+        if (isRealVoiceName(name)) {
+          setVoiceNameState(name);
+          localStorage.setItem(STORAGE_KEY, name);
         }
       })
       .catch(() => {});

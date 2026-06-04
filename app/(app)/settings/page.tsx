@@ -34,7 +34,7 @@ type FormState = {
 const DEFAULTS: FormState = {
   level: 'A2-B1',
   daily_goal: '20',
-  tts_voice: 'de-DE',
+  tts_voice: '',
   tts_rate: '1.0',
   request_retention: '0.9',
 };
