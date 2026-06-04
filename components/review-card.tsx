@@ -3,8 +3,7 @@
 import { useEffect } from 'react';
 import { TTSButton } from '@/components/tts-button';
 import { Badge } from '@/components/ui/badge';
-import { useTTS } from '@/lib/hooks/use-tts';
-import { useSavedTTS } from '@/lib/hooks/use-saved-tts';
+import { useTTSContext } from '@/lib/tts-context';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n/context';
 
@@ -36,8 +35,7 @@ type Props = {
 
 export function ReviewCard({ card, flipped, autoTts = true }: Props) {
   const { t } = useI18n();
-  const { voiceName } = useSavedTTS();
-  const { speak } = useTTS('de-DE', voiceName || undefined);
+  const { speak } = useTTSContext();
 
   // Word type abbreviation labels
   const WORD_TYPE_LABEL: Record<string, string> = {

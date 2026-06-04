@@ -2,8 +2,7 @@
 
 import { Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useTTS } from '@/lib/hooks/use-tts';
-import { useSavedTTS } from '@/lib/hooks/use-saved-tts';
+import { useTTSContext } from '@/lib/tts-context';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n/context';
 
@@ -17,8 +16,7 @@ type Props = {
 
 export function TTSButton({ text, rate = 1, className, size = 'icon', autoPlay = false }: Props) {
   const { t } = useI18n();
-  const { voiceName } = useSavedTTS();
-  const { speak, status } = useTTS('de-DE', voiceName || undefined);
+  const { speak, status } = useTTSContext();
 
   if (!status.supported) {
     return (
