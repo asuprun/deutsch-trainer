@@ -113,6 +113,21 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
     }
   }
 
+  // ── Enter → Next после проверки ────────────────────────────────────────────
+
+  useEffect(() => {
+    if (checkState === null) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        next();
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkState, idx]);
+
   // ── Restart ─────────────────────────────────────────────────────────────────
 
   function restart() {
