@@ -117,14 +117,18 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
 
   useEffect(() => {
     if (checkState === null) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        next();
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // Задержка 350 мс — чтобы Enter с мобильной клавиатуры не попал сразу в «Weiter»
+    let handler: ((e: KeyboardEvent) => void) | null = null;
+    const id = setTimeout(() => {
+      handler = (e: KeyboardEvent) => {
+        if (e.key === 'Enter') { e.preventDefault(); next(); }
+      };
+      window.addEventListener('keydown', handler);
+    }, 350);
+    return () => {
+      clearTimeout(id);
+      if (handler) window.removeEventListener('keydown', handler);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkState, idx]);
 
