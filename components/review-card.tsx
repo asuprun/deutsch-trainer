@@ -89,7 +89,7 @@ export function ReviewCard({ card, flipped, autoTts = true }: Props) {
               {card.gender && (
                 <span className={cn('font-serif text-3xl sm:text-4xl', genderClass)}>{card.gender}</span>
               )}
-              <h2 className="font-serif text-4xl sm:text-5xl font-medium leading-tight tracking-tight min-w-0 [overflow-wrap:anywhere]">
+              <h2 className="font-serif font-medium leading-tight tracking-tight min-w-0 [overflow-wrap:anywhere] [font-size:clamp(1.25rem,7vw,3rem)]">
                 {card.front}
               </h2>
               <TTSButton text={card.front} size="icon" />
@@ -114,7 +114,7 @@ export function ReviewCard({ card, flipped, autoTts = true }: Props) {
               {card.gender && (
                 <span className={cn('font-serif text-3xl sm:text-4xl', genderClass)}>{card.gender}</span>
               )}
-              <h2 className="font-serif text-4xl sm:text-5xl font-medium leading-tight tracking-tight min-w-0 [overflow-wrap:anywhere]">
+              <h2 className="font-serif font-medium leading-tight tracking-tight min-w-0 [overflow-wrap:anywhere] [font-size:clamp(1.25rem,7vw,3rem)]">
                 {card.front}
               </h2>
               <TTSButton text={card.front} size="icon" />
