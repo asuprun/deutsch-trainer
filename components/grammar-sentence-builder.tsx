@@ -212,14 +212,14 @@ export function GrammarSentenceBuilder({ noteId, noteTitle, onBack }: Props) {
         )}
       </div>
 
-      {/* Topic + task label */}
-      <div>
-        <p className="text-sm font-medium text-muted-foreground">{noteTitle}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{ex.translation}</p>
-      </div>
+      {/* Topic label */}
+      <p className="text-sm text-muted-foreground">{noteTitle}</p>
 
-      {/* Instruction */}
-      <p className="text-sm font-medium">{t('grambld_instruction')}</p>
+      {/* Translation task — visually highlighted */}
+      <div className="rounded-xl border border-primary/30 bg-primary/8 px-4 py-3">
+        <p className="text-[11px] uppercase tracking-widest text-primary/60 mb-1">{t('grambld_instruction')}</p>
+        <p className="text-base font-medium leading-snug">{ex.translation}</p>
+      </div>
 
       {/* Selected words area */}
       <div className="min-h-[52px] rounded-xl border bg-card px-4 py-3 flex flex-wrap gap-2">

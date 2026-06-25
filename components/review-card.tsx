@@ -87,7 +87,7 @@ export function ReviewCard({ card, flipped, autoTts = true }: Props) {
           <div className="flex flex-col items-center gap-6 w-full">
             <div className="flex items-baseline justify-center gap-3 flex-wrap text-center w-full">
               {card.gender && (
-                <span className={cn('font-serif text-3xl sm:text-4xl', genderClass)}>{card.gender}</span>
+                <span className={cn('font-serif [font-size:clamp(1.125rem,6vw,2.5rem)]', genderClass)}>{card.gender}</span>
               )}
               <h2 className="font-serif font-medium leading-tight tracking-tight min-w-0 [overflow-wrap:anywhere] [font-size:clamp(1.25rem,7vw,3rem)]">
                 {card.front}
@@ -112,7 +112,7 @@ export function ReviewCard({ card, flipped, autoTts = true }: Props) {
           <div className="flex flex-col items-center gap-6 w-full">
             <div className="flex items-baseline justify-center gap-3 flex-wrap text-center w-full">
               {card.gender && (
-                <span className={cn('font-serif text-3xl sm:text-4xl', genderClass)}>{card.gender}</span>
+                <span className={cn('font-serif [font-size:clamp(1.125rem,6vw,2.5rem)]', genderClass)}>{card.gender}</span>
               )}
               <h2 className="font-serif font-medium leading-tight tracking-tight min-w-0 [overflow-wrap:anywhere] [font-size:clamp(1.25rem,7vw,3rem)]">
                 {card.front}
