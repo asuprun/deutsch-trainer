@@ -22,7 +22,7 @@ type QueueResponse = {
   due_count_total: number;
 };
 
-type Status = 'loading' | 'empty' | 'active' | 'done' | 'error';
+type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error';
 type Mode = 'cards' | 'typing';
 
 export default function ReviewPage() {
@@ -38,7 +38,7 @@ function ReviewInner() {
   const searchParams = useSearchParams();
   const sourceId = searchParams.get('source_id');
   const { t } = useI18n();
-  const [status, setStatus] = useState<Status>('loading');
+  const [status, setStatus] = useState<Status>('lobby');
   const [queue, setQueue] = useState<QueueCard[]>([]);
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -46,12 +46,29 @@ function ReviewInner() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>('cards');
+  const [limit, setLimit] = useState<number>(sourceId ? 500 : 20);
+  const [totalDue, setTotalDue] = useState<number | null>(null);
 
-  const loadQueue = useCallback(async () => {
+  // Fetch due count in background when lobby is shown
+  useEffect(() => {
+    if (status !== 'lobby') return;
+    const qs = new URLSearchParams({ limit: '1' });
+    if (sourceId) qs.set('source_id', sourceId);
+    fetch(`/api/review/queue?${qs}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data && typeof data.due_count_total === 'number') {
+          setTotalDue(data.due_count_total);
+        }
+      })
+      .catch(() => {});
+  }, [status, sourceId]);
+
+  const loadQueue = useCallback(async (selectedLimit: number) => {
     setStatus('loading');
     setError(null);
     try {
-      const qs = new URLSearchParams({ limit: '20' });
+      const qs = new URLSearchParams({ limit: String(selectedLimit) });
       if (sourceId) qs.set('source_id', sourceId);
       const res = await fetch(`/api/review/queue?${qs}`);
       if (!res.ok) {
@@ -72,11 +89,7 @@ function ReviewInner() {
       setStatus('error');
       setError(e instanceof Error ? e.message : t('review_load_error'));
     }
-  }, [sourceId]);
-
-  useEffect(() => {
-    loadQueue();
-  }, [loadQueue]);
+  }, [sourceId, t]);
 
   const current = status === 'active' ? queue[idx] : null;
 
@@ -142,6 +155,73 @@ function ReviewInner() {
     return () => window.removeEventListener('keydown', onKey);
   }, [status, mode, flipped, handleRate, router]);
 
+  // ── Lobby ────────────────────────────────────────────────────────────────────
+  if (status === 'lobby') {
+    const LIMIT_OPTIONS = [10, 20, 50];
+    return (
+      <div className="fixed inset-0 z-[60] flex flex-col bg-background">
+        <header className="shrink-0 flex items-center gap-2 border-b px-4 py-3 sm:px-6">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/" aria-label={t('review_close_label')}>
+              <X className="size-5" />
+            </Link>
+          </Button>
+          <span className="flex-1 text-center text-sm font-medium">Тренировка</span>
+          <div className="size-9" />
+        </header>
+
+        <main className="flex-1 flex flex-col items-center justify-center gap-6 p-6 text-center">
+          {sourceId && (
+            <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
+              из колоды
+            </span>
+          )}
+
+          <p className="text-muted-foreground text-sm">
+            <span className="text-2xl font-bold text-foreground tabular-nums">
+              {totalDue ?? '...'}
+            </span>{' '}
+            {t('review_lobby_due')}
+          </p>
+
+          <div className="flex flex-col items-center gap-3">
+            <p className="text-lg font-semibold">{t('review_lobby_how_many')}</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {LIMIT_OPTIONS.map((n) => (
+                <Button
+                  key={n}
+                  variant={limit === n ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setLimit(n)}
+                  className="min-w-[3.5rem]"
+                >
+                  {n}
+                </Button>
+              ))}
+              <Button
+                variant={limit === (totalDue ?? 500) ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setLimit(totalDue ?? 500)}
+                className="min-w-[3.5rem]"
+              >
+                {t('review_lobby_all')} {totalDue != null ? totalDue : ''}
+              </Button>
+            </div>
+          </div>
+
+          <Button
+            size="lg"
+            onClick={() => loadQueue(limit)}
+            className="mt-2 min-w-[160px]"
+          >
+            {t('review_lobby_start')} →
+          </Button>
+        </main>
+      </div>
+    );
+  }
+
+  // ── Loading ──────────────────────────────────────────────────────────────────
   if (status === 'loading') {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -155,7 +235,7 @@ function ReviewInner() {
       <div className="p-6 max-w-xl">
         <h1 className="text-2xl font-semibold mb-2">{t('error_title')}</h1>
         <p className="text-sm text-destructive mb-4">{error}</p>
-        <Button onClick={loadQueue}>
+        <Button onClick={() => loadQueue(limit)}>
           <RotateCw className="size-4 mr-2" />
           {t('upload_retry')}
         </Button>
@@ -186,7 +266,7 @@ function ReviewInner() {
         <h1 className="text-3xl font-semibold">{t('review_session_done')}</h1>
         <p className="text-muted-foreground">{t('review_reviewed_count')}: {done}</p>
         <div className="flex gap-3 mt-2">
-          <Button onClick={loadQueue}>
+          <Button onClick={() => setStatus('lobby')}>
             <RotateCw className="size-4 mr-2" />
             {t('review_another_session')}
           </Button>

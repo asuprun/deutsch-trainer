@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import { formatInterval } from '@/lib/format/intervals';
 import { CreateCardDialog } from '@/components/create-card-dialog';
+import { QuickAddWords } from '@/components/quick-add-words';
 import { useI18n } from '@/lib/i18n/context';
 
 type CardKind = 'vocab' | 'phrase' | 'grammar_rule' | 'sentence';
@@ -91,6 +92,7 @@ export default function CardsPage() {
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
   const [enrichingBatch, setEnrichingBatch] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -401,6 +403,10 @@ export default function CardsPage() {
               </Button>
             </>
           )}
+          <Button size="sm" variant="outline" onClick={() => setQuickAddOpen(true)}>
+            <Sparkles className="size-4 sm:mr-1.5" />
+            <span className="hidden sm:inline">{t('quick_add_btn')}</span>
+          </Button>
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4 sm:mr-1.5" />
             <span className="hidden sm:inline">{t('cards_add')}</span>
@@ -723,6 +729,15 @@ export default function CardsPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         onCreated={fetchCards}
+      />
+
+      <QuickAddWords
+        open={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        onSaved={(n) => {
+          toast.success(`Добавлено ${n} карточек`);
+          fetchCards();
+        }}
       />
 
       {/* ── Duplicates dialog ── */}

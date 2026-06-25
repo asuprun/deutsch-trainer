@@ -5,7 +5,7 @@ import { previewIntervals, type CardJson } from '@/lib/fsrs/scheduler';
 export const runtime = 'nodejs';
 
 const DEFAULT_LIMIT = 20;
-const MAX_LIMIT = 100;
+const MAX_LIMIT = 500;
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
