@@ -93,7 +93,14 @@ export async function POST(req: Request) {
     const cards = data.cards ?? [];
     return NextResponse.json({ cards });
   } catch (e) {
-    console.error('[cards/generate-from-words]', e);
-    return err('GEMINI_ERROR', e instanceof Error ? e.message : 'Gemini error', 500);
+    const raw = e instanceof Error ? e.message : 'Gemini error';
+    console.error('[cards/generate-from-words]', raw);
+    let userMsg = raw;
+    if (/503|overload|unavailable|high demand/i.test(raw)) {
+      userMsg = 'Gemini сейчас перегружен. Подожди минуту и попробуй снова.';
+    } else if (/429|quota|rate.?limit/i.test(raw)) {
+      userMsg = 'Превышен лимит Gemini API. Подожди минуту или дождись сброса в полночь UTC.';
+    }
+    return err('GEMINI_ERROR', userMsg, 503);
   }
 }

@@ -33,10 +33,18 @@ export const GEMINI_CASCADE = [
   'gemini-2.0-flash-lite',
 ] as const;
 
-/** Пропускаем модель при 429 (квота) или 404 (модель устарела/удалена) */
+/**
+ * Пропускаем модель и пробуем следующую при:
+ *  - 429 (квота) / 404 (модель устарела)
+ *  - 503/502/500/504 (перегрузка, временная недоступность)
+ *  - сетевых сбоях и текстовых маркерах overload/unavailable
+ */
 function isSkippable(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
-  return /429|Too Many Requests|quota|rate.?limit|404|not found/i.test(msg);
+  if (/\b(429|404|500|502|503|504)\b/.test(msg)) return true;
+  return /Too Many Requests|quota|rate.?limit|not found|overload|unavailable|high demand|timeout|ECONNRESET|ETIMEDOUT|fetch failed/i.test(
+    msg,
+  );
 }
 
 /**

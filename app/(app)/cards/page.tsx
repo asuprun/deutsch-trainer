@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, Fragment, useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Loader2, Pencil, Trash2, ChevronLeft, ChevronRight, X, Check, ExternalLink, Plus, Sparkles, ScanSearch } from 'lucide-react';
+import { Loader2, Pencil, Trash2, ChevronLeft, ChevronRight, X, Check, ExternalLink, Plus, Sparkles, ScanSearch, WandSparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -404,7 +404,7 @@ export default function CardsPage() {
             </>
           )}
           <Button size="sm" variant="outline" onClick={() => setQuickAddOpen(true)}>
-            <Sparkles className="size-4 sm:mr-1.5" />
+            <WandSparkles className="size-4 sm:mr-1.5" />
             <span className="hidden sm:inline">{t('quick_add_btn')}</span>
           </Button>
           <Button size="sm" onClick={() => setCreateOpen(true)}>
