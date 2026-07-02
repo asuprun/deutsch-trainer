@@ -62,34 +62,37 @@ export function TypingInput({ correctAnswer, hint, intervals, onRate, disabled }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') {
+    // Enter в поле ввода ТОЛЬКО проверяет — переход дальше идёт через
+    // глобальный листенер с задержкой, чтобы тот же Enter не перескочил карту
+    if (e.key === 'Enter' && !checked) {
       e.preventDefault();
-      if (!checked) {
-        handleCheck();
-      } else if (result != null) {
-        // Enter на задизейбленном инпуте тоже переходит дальше
-        onRate(resultToGrade(result));
-      }
+      handleCheck();
     }
   }
 
   useEffect(() => {
     if (!checked) return;
-    function onKey(e: KeyboardEvent) {
-      // Пропускаем только активные (не disabled) текстовые поля
-      if (e.target instanceof HTMLInputElement && !e.target.disabled) return;
-      if (e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === 'Enter' && result != null) {
-        e.preventDefault();
-        onRate(resultToGrade(result));
-      }
-      if (['1', '2', '3', '4'].includes(e.key)) {
-        e.preventDefault();
-        onRate(Number(e.key) as Grade);
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // Задержка 350 мс: Enter с мобильной клавиатуры, проверивший ответ,
+    // успевает завершиться и не «протекает» в переход к следующей карте
+    let handler: ((e: KeyboardEvent) => void) | null = null;
+    const id = setTimeout(() => {
+      handler = (e: KeyboardEvent) => {
+        if (e.target instanceof HTMLTextAreaElement) return;
+        if (e.key === 'Enter' && result != null) {
+          e.preventDefault();
+          onRate(resultToGrade(result));
+        }
+        if (['1', '2', '3', '4'].includes(e.key)) {
+          e.preventDefault();
+          onRate(Number(e.key) as Grade);
+        }
+      };
+      window.addEventListener('keydown', handler);
+    }, 350);
+    return () => {
+      clearTimeout(id);
+      if (handler) window.removeEventListener('keydown', handler);
+    };
   }, [checked, result, onRate]);
 
   const cfg  = result ? RESULT_CONFIG[result] : null;
