@@ -19,8 +19,10 @@ type Exercise = {
   explanation: string;
 };
 
-type Status = 'loading' | 'active' | 'done' | 'error';
+type Status = 'lobby' | 'loading' | 'active' | 'done' | 'error';
 type CheckState = null | 'correct' | 'wrong';
+
+const COUNT_OPTIONS = [5, 10, 15];
 
 type Props = {
   noteId: string;
@@ -32,7 +34,8 @@ type Props = {
 
 export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
   const { t } = useI18n();
-  const [status, setStatus] = useState<Status>('loading');
+  const [status, setStatus] = useState<Status>('lobby');
+  const [count, setCount] = useState(5);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [idx, setIdx] = useState(0);
   const [input, setInput] = useState('');
@@ -53,42 +56,34 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
 
   // ── Load exercises ──────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setStatus('loading');
-      try {
-        const res = await fetch('/api/grammar/exercises', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ grammar_note_id: noteId }),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
-        }
-        const data = await res.json();
-        if (!data.exercises?.length) throw new Error('No exercises');
-        if (!cancelled) {
-          setExercises(data.exercises);
-          setFromCache(!!data.cached);
-          setIdx(0);
-          setInput('');
-          setCheckState(null);
-          setScore(0);
-          setStatus('active');
-          focusInput(100);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setErrorMsg(e instanceof Error ? e.message : String(e));
-          setStatus('error');
-        }
+  async function load(selectedCount: number) {
+    setCount(selectedCount);
+    setStatus('loading');
+    try {
+      const res = await fetch('/api/grammar/exercises', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grammar_note_id: noteId, count: selectedCount }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
       }
+      const data = await res.json();
+      if (!data.exercises?.length) throw new Error('No exercises');
+      setExercises(data.exercises);
+      setFromCache(!!data.cached);
+      setIdx(0);
+      setInput('');
+      setCheckState(null);
+      setScore(0);
+      setStatus('active');
+      focusInput(100);
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : String(e));
+      setStatus('error');
     }
-    load();
-    return () => { cancelled = true; };
-  }, [noteId]);
+  }
 
   // ── Check ───────────────────────────────────────────────────────────────────
 
@@ -143,6 +138,38 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
     focusInput(60);
   }
 
+  // ── Render: lobby (выбор количества) ─────────────────────────────────────────
+
+  if (status === 'lobby') {
+    return (
+      <div className="flex flex-col gap-6 max-w-sm">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={onBack}>
+            <ChevronLeft className="size-4" />
+          </Button>
+          <p className="text-sm font-medium text-muted-foreground">{noteTitle}</p>
+        </div>
+        <p className="text-lg font-semibold">{t('gramex_how_many')}</p>
+        <div className="flex flex-wrap gap-2">
+          {COUNT_OPTIONS.map((n) => (
+            <Button
+              key={n}
+              variant={count === n ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setCount(n)}
+              className="min-w-[3.5rem]"
+            >
+              {n}
+            </Button>
+          ))}
+        </div>
+        <Button size="lg" onClick={() => load(count)} className="self-start min-w-[140px]">
+          {t('gramex_start')} →
+        </Button>
+      </div>
+    );
+  }
+
   // ── Render: loading ─────────────────────────────────────────────────────────
 
   if (status === 'loading') {
@@ -170,7 +197,7 @@ export function GrammarExerciseSession({ noteId, noteTitle, onBack }: Props) {
             <ChevronLeft className="size-4 mr-1" />
             {t('gramex_back')}
           </Button>
-          <Button onClick={() => { setErrorMsg(''); setStatus('loading'); }}>
+          <Button onClick={() => { setErrorMsg(''); load(count); }}>
             <RotateCw className="size-4 mr-1.5" />
             {t('gramex_retry')}
           </Button>

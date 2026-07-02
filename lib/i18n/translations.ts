@@ -360,6 +360,8 @@ export const translations = {
     gramex_finish: 'Завершить',
     gramex_lemma: 'Слово',
     gramex_cached: 'кэш',
+    gramex_how_many: 'Сколько упражнений?',
+    gramex_start: 'Начать',
     // Конструктор предложений
     grambld_generating: 'Генерирую упражнения…',
     grambld_error: 'Не удалось сгенерировать упражнения',
@@ -827,6 +829,8 @@ export const translations = {
     gramex_finish: 'Finish',
     gramex_lemma: 'Word',
     gramex_cached: 'cached',
+    gramex_how_many: 'How many exercises?',
+    gramex_start: 'Start',
     // Sentence builder
     grambld_generating: 'Generating exercises…',
     grambld_error: 'Could not generate exercises',
@@ -1294,6 +1298,8 @@ export const translations = {
     gramex_finish: 'Beenden',
     gramex_lemma: 'Wort',
     gramex_cached: 'Cache',
+    gramex_how_many: 'Wie viele Übungen?',
+    gramex_start: 'Starten',
     // Satzbausteine
     grambld_generating: 'Übungen werden generiert…',
     grambld_error: 'Übungen konnten nicht generiert werden',

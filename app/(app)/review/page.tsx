@@ -157,7 +157,7 @@ function ReviewInner() {
 
   // ── Lobby ────────────────────────────────────────────────────────────────────
   if (status === 'lobby') {
-    const LIMIT_OPTIONS = [10, 20, 50];
+    const LIMIT_OPTIONS = [10, 20, 30, 50];
     return (
       <div className="fixed inset-0 z-[60] flex flex-col bg-background">
         <header className="shrink-0 flex items-center gap-2 border-b px-4 py-3 sm:px-6">

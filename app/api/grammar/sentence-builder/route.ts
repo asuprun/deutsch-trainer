@@ -16,8 +16,11 @@ function err(code: string, message: string, status: number) {
 
 const bodySchema = z.object({
   grammar_note_id: z.string().uuid(),
-  count: z.number().int().min(3).max(8).default(5),
+  count: z.number().int().min(3).max(15).default(5),
 });
+
+// Генерируем пул и кэшируем целиком; отдаём срез нужной длины
+const POOL_SIZE = 15;
 
 // ─── Gemini schema ────────────────────────────────────────────────────────────
 
@@ -87,7 +90,7 @@ export async function POST(req: Request) {
       }
       return { ...ex, words };
     });
-    return NextResponse.json({ exercises, cached: true });
+    return NextResponse.json({ exercises: exercises.slice(0, count), cached: true });
   }
 
   const examplesStr =
@@ -97,7 +100,7 @@ export async function POST(req: Request) {
           .join('\n')}`
       : '';
 
-  const prompt = `Создай ${count} упражнений «составь предложение» для русскоязычного студента немецкого (A2-B1).
+  const prompt = `Создай ${POOL_SIZE} упражнений «составь предложение» для русскоязычного студента немецкого (A2-B1).
 
 ТЕМА: ${note.title}
 ПРАВИЛО: ${note.explanation}${examplesStr}
@@ -116,7 +119,7 @@ export async function POST(req: Request) {
           responseMimeType: 'application/json',
           responseSchema,
           temperature: 0.75,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 4096,
         },
       });
       const res = await model.generateContent(prompt);
@@ -138,14 +141,14 @@ export async function POST(req: Request) {
       },
     );
 
-    // ── Сохраняем в кэш (fire-and-forget) ──────────────────────────────────
+    // ── Сохраняем весь пул в кэш (fire-and-forget) ─────────────────────────
     void db.from('grammar_exercises_cache')
       .insert({ grammar_note_id, exercise_type: 'builder', exercises })
       .then(({ error }) => {
         if (error) console.error('[grammar/sentence-builder] cache write error', error);
       });
 
-    return NextResponse.json({ exercises, cached: false });
+    return NextResponse.json({ exercises: exercises.slice(0, count), cached: false });
   } catch (e) {
     console.error('[grammar/sentence-builder]', e);
     return err('GEMINI_ERROR', e instanceof Error ? e.message : 'Gemini error', 500);
