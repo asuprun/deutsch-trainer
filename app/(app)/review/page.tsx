@@ -26,7 +26,7 @@ type QueueResponse = {
 type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error' | 'gender';
 type Mode = 'cards' | 'typing';
 type Direction = 'de-ru' | 'ru-de';
-type Training = 'words' | 'gender';
+type Training = 'words' | 'gender' | 'leeches';
 
 export default function ReviewPage() {
   return (
@@ -53,28 +53,38 @@ function ReviewInner() {
   const [training, setTraining] = useState<Training>('words');
   const [limit, setLimit] = useState<number>(sourceId ? 500 : 20);
   const [totalDue, setTotalDue] = useState<number | null>(null);
+  const [totalLeeches, setTotalLeeches] = useState<number | null>(null);
 
-  // Fetch due count in background when lobby is shown
+  // Fetch due + leech counts in background when lobby is shown
   useEffect(() => {
     if (status !== 'lobby') return;
-    const qs = new URLSearchParams({ limit: '1' });
-    if (sourceId) qs.set('source_id', sourceId);
-    fetch(`/api/review/queue?${qs}`)
-      .then((res) => res.ok ? res.json() : null)
+    const base = new URLSearchParams({ limit: '1' });
+    if (sourceId) base.set('source_id', sourceId);
+    // Обычная очередь
+    fetch(`/api/review/queue?${base}`)
+      .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data && typeof data.due_count_total === 'number') {
-          setTotalDue(data.due_count_total);
-        }
+        if (data && typeof data.due_count_total === 'number') setTotalDue(data.due_count_total);
+      })
+      .catch(() => {});
+    // Трудные слова
+    const leechQs = new URLSearchParams(base);
+    leechQs.set('leeches', '1');
+    fetch(`/api/review/queue?${leechQs}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data.due_count_total === 'number') setTotalLeeches(data.due_count_total);
       })
       .catch(() => {});
   }, [status, sourceId]);
 
-  const loadQueue = useCallback(async (selectedLimit: number) => {
+  const loadQueue = useCallback(async (selectedLimit: number, leeches = false) => {
     setStatus('loading');
     setError(null);
     try {
       const qs = new URLSearchParams({ limit: String(selectedLimit) });
       if (sourceId) qs.set('source_id', sourceId);
+      if (leeches) qs.set('leeches', '1');
       const res = await fetch(`/api/review/queue?${qs}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -196,27 +206,24 @@ function ReviewInner() {
           {/* Тип тренировки */}
           <div className="flex flex-col items-center gap-3">
             <p className="text-sm text-muted-foreground">{t('review_train_label')}</p>
-            <div className="flex rounded-md border overflow-hidden">
-              <button
-                onClick={() => setTraining('words')}
-                className={`px-4 py-1.5 text-sm transition-colors ${
-                  training === 'words'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                {t('review_train_words')}
-              </button>
-              <button
-                onClick={() => setTraining('gender')}
-                className={`px-4 py-1.5 text-sm transition-colors border-l ${
-                  training === 'gender'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                {t('review_train_gender')}
-              </button>
+            <div className="flex flex-wrap justify-center gap-2">
+              {([
+                ['words', t('review_train_words')],
+                ['gender', t('review_train_gender')],
+                ['leeches', t('review_train_leeches')],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setTraining(value)}
+                  className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${
+                    training === value
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -226,6 +233,14 @@ function ReviewInner() {
                 {totalDue ?? '...'}
               </span>{' '}
               {t('review_lobby_due')}
+            </p>
+          )}
+          {training === 'leeches' && (
+            <p className="text-muted-foreground text-sm">
+              <span className="text-2xl font-bold text-foreground tabular-nums">
+                {totalLeeches ?? '...'}
+              </span>{' '}
+              {t('review_lobby_leech_count')}
             </p>
           )}
 
@@ -243,19 +258,24 @@ function ReviewInner() {
                   {n}
                 </Button>
               ))}
-              <Button
-                variant={limit === (totalDue ?? 500) ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setLimit(totalDue ?? 500)}
-                className="min-w-[3.5rem]"
-              >
-                {t('review_lobby_all')} {totalDue != null ? totalDue : ''}
-              </Button>
+              {(() => {
+                const lobbyTotal = training === 'leeches' ? totalLeeches : totalDue;
+                return (
+                  <Button
+                    variant={limit === (lobbyTotal ?? 500) ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setLimit(lobbyTotal ?? 500)}
+                    className="min-w-[3.5rem]"
+                  >
+                    {t('review_lobby_all')} {lobbyTotal != null ? lobbyTotal : ''}
+                  </Button>
+                );
+              })()}
             </div>
           </div>
 
-          {/* Направление перевода — только для тренировки слов */}
-          {training === 'words' && (
+          {/* Направление перевода — для слов и трудных (не для рода) */}
+          {training !== 'gender' && (
             <div className="flex flex-col items-center gap-3">
               <p className="text-sm text-muted-foreground">{t('review_dir_label')}</p>
               <div className="flex rounded-md border overflow-hidden">
@@ -285,7 +305,10 @@ function ReviewInner() {
 
           <Button
             size="lg"
-            onClick={() => (training === 'gender' ? setStatus('gender') : loadQueue(limit))}
+            onClick={() => {
+              if (training === 'gender') setStatus('gender');
+              else loadQueue(limit, training === 'leeches');
+            }}
             className="mt-2 min-w-[160px]"
           >
             {t('review_lobby_start')} →
@@ -318,6 +341,20 @@ function ReviewInner() {
   }
 
   if (status === 'empty') {
+    // Для трудных слов — своё сообщение и возврат в лобби
+    if (training === 'leeches') {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-6 text-center">
+          <h1 className="text-2xl font-semibold">{t('review_leeches_empty')}</h1>
+          <div className="flex gap-3 mt-2">
+            <Button variant="outline" onClick={() => setStatus('lobby')}>{t('gramex_back')}</Button>
+            <Button asChild>
+              <Link href="/">{t('btn_home')}</Link>
+            </Button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-6 text-center">
         <h1 className="text-3xl font-semibold">{t('review_empty')}</h1>
