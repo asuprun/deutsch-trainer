@@ -24,6 +24,7 @@ type QueueResponse = {
 
 type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error';
 type Mode = 'cards' | 'typing';
+type Direction = 'de-ru' | 'ru-de';
 
 export default function ReviewPage() {
   return (
@@ -46,6 +47,7 @@ function ReviewInner() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>('cards');
+  const [direction, setDirection] = useState<Direction>('de-ru');
   const [limit, setLimit] = useState<number>(sourceId ? 500 : 20);
   const [totalDue, setTotalDue] = useState<number | null>(null);
 
@@ -209,6 +211,33 @@ function ReviewInner() {
             </div>
           </div>
 
+          {/* Направление перевода */}
+          <div className="flex flex-col items-center gap-3">
+            <p className="text-sm text-muted-foreground">{t('review_dir_label')}</p>
+            <div className="flex rounded-md border overflow-hidden">
+              <button
+                onClick={() => setDirection('de-ru')}
+                className={`px-4 py-1.5 text-sm transition-colors ${
+                  direction === 'de-ru'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {t('review_dir_de_ru')}
+              </button>
+              <button
+                onClick={() => setDirection('ru-de')}
+                className={`px-4 py-1.5 text-sm transition-colors border-l ${
+                  direction === 'ru-de'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {t('review_dir_ru_de')}
+              </button>
+            </div>
+          </div>
+
           <Button
             size="lg"
             onClick={() => loadQueue(limit)}
@@ -289,6 +318,10 @@ function ReviewInner() {
       ? 'cards'
       : mode;
 
+  // RU→DE только для слов и фраз — правило/предложение переворачивать бессмысленно
+  const reversed =
+    direction === 'ru-de' && (current.kind === 'vocab' || current.kind === 'phrase');
+
   return (
     // fixed inset-0 вырывается из layout (pb-16), полностью перекрывает viewport
     // и не даёт браузеру показывать page-level scroll
@@ -347,10 +380,10 @@ function ReviewInner() {
               rightLabel={flipped ? '✓ Легко' : '👁 Ответ'}
               disabled={submitting}
             >
-              <ReviewCard card={current} flipped={flipped} />
+              <ReviewCard card={current} flipped={flipped} reversed={reversed} />
             </SwipeCard>
           ) : (
-            <ReviewCard card={current} flipped={false} />
+            <ReviewCard card={current} flipped={false} reversed={reversed} />
           )}
 
           {effectiveMode === 'cards' && !flipped && (
@@ -363,8 +396,8 @@ function ReviewInner() {
           {effectiveMode === 'typing' && (
             <TypingInput
               key={current.id}
-              correctAnswer={current.back}
-              hint={t('review_type_hint')}
+              correctAnswer={reversed ? current.front : current.back}
+              hint={reversed ? t('review_type_hint_de') : t('review_type_hint')}
               intervals={current.intervals}
               onRate={handleRate}
               disabled={submitting}

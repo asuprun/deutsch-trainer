@@ -31,9 +31,11 @@ type Props = {
   card: ReviewCardData;
   flipped: boolean;
   autoTts?: boolean;
+  /** RU→DE: на лицевой стороне показываем русский перевод как задание */
+  reversed?: boolean;
 };
 
-export function ReviewCard({ card, flipped, autoTts = true }: Props) {
+export function ReviewCard({ card, flipped, autoTts = true, reversed = false }: Props) {
   const { t } = useI18n();
   const { speak } = useTTSContext();
 
@@ -86,18 +88,18 @@ export function ReviewCard({ card, flipped, autoTts = true }: Props) {
         <div className="w-full [backface-visibility:hidden] bg-background">
           <div className="flex flex-col items-center gap-6 w-full">
             <div className="flex items-baseline justify-center gap-3 flex-wrap text-center w-full">
-              {card.gender && (
+              {!reversed && card.gender && (
                 <span className={cn('font-serif [font-size:clamp(1.125rem,6vw,2.5rem)]', genderClass)}>{card.gender}</span>
               )}
               <h2 className="font-serif font-medium leading-tight tracking-tight min-w-0 [overflow-wrap:anywhere] [font-size:clamp(1.25rem,7vw,3rem)]">
-                {card.front}
+                {reversed ? card.back : card.front}
               </h2>
-              <TTSButton text={card.front} size="icon" />
+              {!reversed && <TTSButton text={card.front} size="icon" />}
             </div>
 
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               {wordTypeLabel && <span>{wordTypeLabel}</span>}
-              {card.plural && <span>· {t('revcard_plural')} {card.plural}</span>}
+              {!reversed && card.plural && <span>· {t('revcard_plural')} {card.plural}</span>}
               {card.tags?.map((tag) => (
                 <Badge key={tag} variant="outline" className="text-xs">
                   {tag}
