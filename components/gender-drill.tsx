@@ -6,7 +6,7 @@ import { Loader2, X, RotateCw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/lib/i18n/context';
 import { useTTSContext } from '@/lib/tts-context';
-import { cn } from '@/lib/utils';
+import { cn, stripArticle } from '@/lib/utils';
 
 type Noun = {
   id: string;
@@ -86,8 +86,8 @@ export function GenderDrill({ count, sourceId, onExit }: Props) {
       setPicked(value);
       const correct = value === current.gender;
       if (correct) setScore((s) => s + 1);
-      // Озвучиваем правильный вариант «der Hund»
-      speak(`${current.gender} ${current.front}`);
+      // Озвучиваем правильный вариант «der Hund» (без дубля артикля)
+      speak(`${current.gender} ${stripArticle(current.front)}`);
       // Автопереход: быстрее при верном, дольше при ошибке (успеть прочитать)
       const delay = correct ? 850 : 1900;
       setTimeout(advance, delay);
@@ -178,7 +178,7 @@ export function GenderDrill({ count, sourceId, onExit }: Props) {
         {/* Существительное */}
         <div className="text-center">
           <h2 className="font-serif font-medium leading-tight [overflow-wrap:anywhere] [font-size:clamp(1.75rem,8vw,3.5rem)]">
-            {current.front}
+            {stripArticle(current.front)}
           </h2>
           {picked && (
             <p className="mt-3 text-muted-foreground text-lg">{current.back}</p>

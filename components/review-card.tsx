@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { TTSButton } from '@/components/tts-button';
 import { Badge } from '@/components/ui/badge';
 import { useTTSContext } from '@/lib/tts-context';
-import { cn } from '@/lib/utils';
+import { cn, stripArticle } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n/context';
 
 const GENDER_COLOR: Record<string, string> = {
@@ -61,6 +61,8 @@ export function ReviewCard({ card, flipped, autoTts = true, reversed = false }: 
   }, [flipped, card.id, card.front, speak, autoTts]);
 
   const genderClass = card.gender ? GENDER_COLOR[card.gender] : undefined;
+  // Если род показан отдельно — убираем артикль из слова, чтобы не было «die die Kalorie»
+  const germanWord = card.gender ? stripArticle(card.front) : card.front;
   const wordTypeLabel = card.word_type ? WORD_TYPE_LABEL[card.word_type] : '';
   const forms = card.forms as
     | {
@@ -92,7 +94,7 @@ export function ReviewCard({ card, flipped, autoTts = true, reversed = false }: 
                 <span className={cn('font-serif [font-size:clamp(1.125rem,6vw,2.5rem)]', genderClass)}>{card.gender}</span>
               )}
               <h2 className="font-serif font-medium leading-tight tracking-tight min-w-0 [overflow-wrap:anywhere] [font-size:clamp(1.25rem,7vw,3rem)]">
-                {reversed ? card.back : card.front}
+                {reversed ? card.back : germanWord}
               </h2>
               {!reversed && <TTSButton text={card.front} size="icon" />}
             </div>
@@ -117,7 +119,7 @@ export function ReviewCard({ card, flipped, autoTts = true, reversed = false }: 
                 <span className={cn('font-serif [font-size:clamp(1.125rem,6vw,2.5rem)]', genderClass)}>{card.gender}</span>
               )}
               <h2 className="font-serif font-medium leading-tight tracking-tight min-w-0 [overflow-wrap:anywhere] [font-size:clamp(1.25rem,7vw,3rem)]">
-                {card.front}
+                {germanWord}
               </h2>
               <TTSButton text={card.front} size="icon" />
             </div>
