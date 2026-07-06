@@ -22,7 +22,9 @@ const cardInput = z.object({
 
 const bodySchema = z.object({
   title: z.string().min(1).max(500),
-  cards: z.array(cardInput).min(1).max(30),
+  // Общие теги применяются ко всем картам партии (уровень, тема)
+  tags: z.array(z.string().max(50)).max(20).optional().default([]),
+  cards: z.array(cardInput).min(1).max(250),
 });
 
 export async function POST(req: Request) {
@@ -32,8 +34,11 @@ export async function POST(req: Request) {
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) return err('VALIDATION_ERROR', 'Bad request', 400);
 
-  const { title, cards } = parsed.data;
+  const { title, tags: commonTags, cards } = parsed.data;
   const sb = getSupabaseAdmin();
+
+  // Нормализуем общие теги
+  const sharedTags = commonTags.map((t) => t.trim()).filter(Boolean);
 
   // Create source row
   const imagePath = `quick_add_${Date.now()}`;
@@ -63,7 +68,8 @@ export async function POST(req: Request) {
     forms: c.forms ?? null,
     examples: c.examples ?? null,
     mnemonic: null,
-    tags: c.tags ?? [],
+    // Объединяем общие теги партии с тегами карты (без дублей)
+    tags: Array.from(new Set([...sharedTags, ...(c.tags ?? [])])),
     fsrs_state: fsrsBase,
     due_at: fsrsBase.due ?? now,
   }));
