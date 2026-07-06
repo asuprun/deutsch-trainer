@@ -10,6 +10,7 @@ import { ReviewCard, type ReviewCardData } from '@/components/review-card';
 import { SwipeCard } from '@/components/swipe-card';
 import { RatingButtons, type RatingIntervals } from '@/components/rating-buttons';
 import { TypingInput } from '@/components/typing-input';
+import { GenderDrill } from '@/components/gender-drill';
 import type { Grade } from 'ts-fsrs';
 import { useI18n } from '@/lib/i18n/context';
 
@@ -22,9 +23,10 @@ type QueueResponse = {
   due_count_total: number;
 };
 
-type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error';
+type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error' | 'gender';
 type Mode = 'cards' | 'typing';
 type Direction = 'de-ru' | 'ru-de';
+type Training = 'words' | 'gender';
 
 export default function ReviewPage() {
   return (
@@ -48,6 +50,7 @@ function ReviewInner() {
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>('cards');
   const [direction, setDirection] = useState<Direction>('de-ru');
+  const [training, setTraining] = useState<Training>('words');
   const [limit, setLimit] = useState<number>(sourceId ? 500 : 20);
   const [totalDue, setTotalDue] = useState<number | null>(null);
 
@@ -157,6 +160,17 @@ function ReviewInner() {
     return () => window.removeEventListener('keydown', onKey);
   }, [status, mode, flipped, handleRate, router]);
 
+  // ── Gender drill ─────────────────────────────────────────────────────────────
+  if (status === 'gender') {
+    return (
+      <GenderDrill
+        count={limit}
+        sourceId={sourceId}
+        onExit={() => setStatus('lobby')}
+      />
+    );
+  }
+
   // ── Lobby ────────────────────────────────────────────────────────────────────
   if (status === 'lobby') {
     const LIMIT_OPTIONS = [10, 20, 30, 50];
@@ -179,12 +193,41 @@ function ReviewInner() {
             </span>
           )}
 
-          <p className="text-muted-foreground text-sm">
-            <span className="text-2xl font-bold text-foreground tabular-nums">
-              {totalDue ?? '...'}
-            </span>{' '}
-            {t('review_lobby_due')}
-          </p>
+          {/* Тип тренировки */}
+          <div className="flex flex-col items-center gap-3">
+            <p className="text-sm text-muted-foreground">{t('review_train_label')}</p>
+            <div className="flex rounded-md border overflow-hidden">
+              <button
+                onClick={() => setTraining('words')}
+                className={`px-4 py-1.5 text-sm transition-colors ${
+                  training === 'words'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {t('review_train_words')}
+              </button>
+              <button
+                onClick={() => setTraining('gender')}
+                className={`px-4 py-1.5 text-sm transition-colors border-l ${
+                  training === 'gender'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {t('review_train_gender')}
+              </button>
+            </div>
+          </div>
+
+          {training === 'words' && (
+            <p className="text-muted-foreground text-sm">
+              <span className="text-2xl font-bold text-foreground tabular-nums">
+                {totalDue ?? '...'}
+              </span>{' '}
+              {t('review_lobby_due')}
+            </p>
+          )}
 
           <div className="flex flex-col items-center gap-3">
             <p className="text-lg font-semibold">{t('review_lobby_how_many')}</p>
@@ -211,36 +254,38 @@ function ReviewInner() {
             </div>
           </div>
 
-          {/* Направление перевода */}
-          <div className="flex flex-col items-center gap-3">
-            <p className="text-sm text-muted-foreground">{t('review_dir_label')}</p>
-            <div className="flex rounded-md border overflow-hidden">
-              <button
-                onClick={() => setDirection('de-ru')}
-                className={`px-4 py-1.5 text-sm transition-colors ${
-                  direction === 'de-ru'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                {t('review_dir_de_ru')}
-              </button>
-              <button
-                onClick={() => setDirection('ru-de')}
-                className={`px-4 py-1.5 text-sm transition-colors border-l ${
-                  direction === 'ru-de'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                {t('review_dir_ru_de')}
-              </button>
+          {/* Направление перевода — только для тренировки слов */}
+          {training === 'words' && (
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-sm text-muted-foreground">{t('review_dir_label')}</p>
+              <div className="flex rounded-md border overflow-hidden">
+                <button
+                  onClick={() => setDirection('de-ru')}
+                  className={`px-4 py-1.5 text-sm transition-colors ${
+                    direction === 'de-ru'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {t('review_dir_de_ru')}
+                </button>
+                <button
+                  onClick={() => setDirection('ru-de')}
+                  className={`px-4 py-1.5 text-sm transition-colors border-l ${
+                    direction === 'ru-de'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {t('review_dir_ru_de')}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <Button
             size="lg"
-            onClick={() => loadQueue(limit)}
+            onClick={() => (training === 'gender' ? setStatus('gender') : loadQueue(limit))}
             className="mt-2 min-w-[160px]"
           >
             {t('review_lobby_start')} →
