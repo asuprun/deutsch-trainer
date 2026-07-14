@@ -11,6 +11,7 @@ import { SwipeCard } from '@/components/swipe-card';
 import { RatingButtons, type RatingIntervals } from '@/components/rating-buttons';
 import { TypingInput } from '@/components/typing-input';
 import { GenderDrill } from '@/components/gender-drill';
+import { VerbFormsDrill } from '@/components/verb-forms-drill';
 import type { Grade } from 'ts-fsrs';
 import { useI18n } from '@/lib/i18n/context';
 
@@ -23,10 +24,10 @@ type QueueResponse = {
   due_count_total: number;
 };
 
-type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error' | 'gender';
+type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error' | 'gender' | 'verbforms';
 type Mode = 'cards' | 'typing';
 type Direction = 'de-ru' | 'ru-de';
-type Training = 'words' | 'gender' | 'leeches';
+type Training = 'words' | 'gender' | 'leeches' | 'verbforms';
 
 export default function ReviewPage() {
   return (
@@ -54,6 +55,7 @@ function ReviewInner() {
   const [limit, setLimit] = useState<number>(sourceId ? 500 : 20);
   const [totalDue, setTotalDue] = useState<number | null>(null);
   const [totalLeeches, setTotalLeeches] = useState<number | null>(null);
+  const [totalVerbs, setTotalVerbs] = useState<number | null>(null);
 
   // Fetch due + leech counts in background when lobby is shown
   useEffect(() => {
@@ -74,6 +76,13 @@ function ReviewInner() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data && typeof data.due_count_total === 'number') setTotalLeeches(data.due_count_total);
+      })
+      .catch(() => {});
+    // Глаголы с формами
+    fetch(`/api/review/verbs?${base}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data.total === 'number') setTotalVerbs(data.total);
       })
       .catch(() => {});
   }, [status, sourceId]);
@@ -181,6 +190,17 @@ function ReviewInner() {
     );
   }
 
+  // ── Verb forms drill ─────────────────────────────────────────────────────────
+  if (status === 'verbforms') {
+    return (
+      <VerbFormsDrill
+        count={limit}
+        sourceId={sourceId}
+        onExit={() => setStatus('lobby')}
+      />
+    );
+  }
+
   // ── Lobby ────────────────────────────────────────────────────────────────────
   if (status === 'lobby') {
     const LIMIT_OPTIONS = [10, 20, 30, 50];
@@ -210,6 +230,7 @@ function ReviewInner() {
               {([
                 ['words', t('review_train_words')],
                 ['gender', t('review_train_gender')],
+                ['verbforms', t('review_train_verbforms')],
                 ['leeches', t('review_train_leeches')],
               ] as const).map(([value, label]) => (
                 <button
@@ -243,6 +264,14 @@ function ReviewInner() {
               {t('review_lobby_leech_count')}
             </p>
           )}
+          {training === 'verbforms' && (
+            <p className="text-muted-foreground text-sm">
+              <span className="text-2xl font-bold text-foreground tabular-nums">
+                {totalVerbs ?? '...'}
+              </span>{' '}
+              {t('review_lobby_verb_count')}
+            </p>
+          )}
 
           <div className="flex flex-col items-center gap-3">
             <p className="text-lg font-semibold">{t('review_lobby_how_many')}</p>
@@ -259,7 +288,10 @@ function ReviewInner() {
                 </Button>
               ))}
               {(() => {
-                const lobbyTotal = training === 'leeches' ? totalLeeches : totalDue;
+                const lobbyTotal =
+                  training === 'leeches' ? totalLeeches
+                  : training === 'verbforms' ? totalVerbs
+                  : totalDue;
                 return (
                   <Button
                     variant={limit === (lobbyTotal ?? 500) ? 'default' : 'outline'}
@@ -274,8 +306,8 @@ function ReviewInner() {
             </div>
           </div>
 
-          {/* Направление перевода — для слов и трудных (не для рода) */}
-          {training !== 'gender' && (
+          {/* Направление перевода — только для слов и трудных */}
+          {(training === 'words' || training === 'leeches') && (
             <div className="flex flex-col items-center gap-3">
               <p className="text-sm text-muted-foreground">{t('review_dir_label')}</p>
               <div className="flex rounded-md border overflow-hidden">
@@ -307,6 +339,7 @@ function ReviewInner() {
             size="lg"
             onClick={() => {
               if (training === 'gender') setStatus('gender');
+              else if (training === 'verbforms') setStatus('verbforms');
               else loadQueue(limit, training === 'leeches');
             }}
             className="mt-2 min-w-[160px]"
