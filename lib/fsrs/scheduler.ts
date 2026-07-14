@@ -11,6 +11,10 @@ const scheduler = createFsrs(
   generatorParameters({
     enable_fuzz: true,
     request_retention: 0.9,
+    // Без шагов обучения в минутах — интервалы сразу в днях
+    // (иначе новые карты первые повторения идут через 1м/10м)
+    learning_steps: [],
+    relearning_steps: [],
   }),
 );
 
