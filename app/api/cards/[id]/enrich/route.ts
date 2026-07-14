@@ -31,6 +31,18 @@ const responseSchema: ResponseSchema = {
       description: 'Plural form for nouns (e.g. "die Häuser"). Empty string if not a noun or unknown.',
       nullable: true,
     },
+    forms: {
+      type: SchemaType.OBJECT,
+      description: 'For verbs only: principal parts. Leave empty for non-verbs.',
+      nullable: true,
+      properties: {
+        praesens:    { type: SchemaType.STRING, description: '3rd person singular, e.g. "nimmt"' },
+        praeteritum: { type: SchemaType.STRING, description: 'Präteritum 3rd person, e.g. "nahm"' },
+        partizip_2:  { type: SchemaType.STRING, description: 'Partizip II without auxiliary, e.g. "genommen"' },
+        hilfsverb:   { type: SchemaType.STRING, description: '"haben" or "sein" (or "haben/sein")' },
+        trennbar:    { type: SchemaType.STRING, description: '"true" if separable verb, else "false"' },
+      },
+    },
     back_corrected: {
       type: SchemaType.STRING,
       description: 'Corrected/improved Russian translation. Keep original if it is already accurate.',
@@ -80,14 +92,22 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
 Задачи:
 1. Определи точный word_type: noun/verb/adjective/adverb/preposition/conjunction/numeral/phrase/other
 2. Если существительное — укажи gender (der/die/das) и plural (форму мн.ч.)
-3. Проверь перевод и исправь в back_corrected если нужно (иначе верни как есть)
-4. Добавь теги: уровень CEFR (A1/A2/B1/B2) и 1-2 тематики на русском
-5. Составь 2-3 примера предложений с переводом на A2-B1 уровне`;
+3. Если ГЛАГОЛ — заполни forms: praesens (3-е лицо ед.ч.), praeteritum (3-е лицо), partizip_2 (без hat/ist), hilfsverb (haben/sein), trennbar ("true"/"false"). Для остальных частей речи forms оставь пустым.
+4. Проверь перевод и исправь в back_corrected если нужно (иначе верни как есть)
+5. Добавь теги: уровень CEFR (A1/A2/B1/B2) и 1-2 тематики на русском
+6. Составь 2-3 примера предложений с переводом на A2-B1 уровне`;
 
   type EnrichedData = {
     word_type: string;
     gender?: string | null;
     plural?: string | null;
+    forms?: {
+      praesens?: string;
+      praeteritum?: string;
+      partizip_2?: string;
+      hilfsverb?: string;
+      trennbar?: string;
+    } | null;
     back_corrected: string;
     tags: string[];
     examples: { de: string; ru: string }[];
@@ -138,6 +158,19 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
   if (enriched.word_type === 'noun') {
     updates.gender = enriched.gender || null;
     updates.plural = enriched.plural || null;
+  }
+
+  // Заполняем формы для глаголов — тогда они попадут в дрилл форм
+  if (enriched.word_type === 'verb' && enriched.forms?.praeteritum && enriched.forms?.partizip_2) {
+    const f = enriched.forms;
+    updates.forms = {
+      infinitiv: card.front,
+      praesens: f.praesens || undefined,
+      praeteritum: f.praeteritum,
+      partizip_2: f.partizip_2,
+      hilfsverb: f.hilfsverb || undefined,
+      trennbar: f.trennbar === 'true',
+    };
   }
 
   const { data: updated, error: updateErr } = await db
