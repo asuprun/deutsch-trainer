@@ -67,6 +67,7 @@ export function ReviewCard({ card, flipped, autoTts = true, reversed = false }: 
   const forms = card.forms as
     | {
         infinitiv?: string;
+        praesens?: string;
         praeteritum?: string;
         partizip_2?: string;
         hilfsverb?: string;
@@ -139,7 +140,9 @@ export function ReviewCard({ card, flipped, autoTts = true, reversed = false }: 
 
               {forms?.infinitiv && (
                 <div className="mt-3 text-sm text-muted-foreground border-t pt-3">
-                  {forms.infinitiv} · {forms.praeteritum} · {forms.partizip_2}
+                  {forms.infinitiv}
+                  {forms.praesens && ` · ${forms.praesens}`}
+                  {' · '}{forms.praeteritum} · {forms.partizip_2}
                   {forms.hilfsverb && ` · ${forms.hilfsverb}`}
                   {forms.trennbar && ` · ${t('revcard_verb_sep')}`}
                 </div>

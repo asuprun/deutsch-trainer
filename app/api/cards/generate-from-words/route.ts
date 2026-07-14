@@ -31,6 +31,7 @@ const responseSchema: ResponseSchema = {
             type: SchemaType.OBJECT,
             properties: {
               infinitiv:    { type: SchemaType.STRING },
+              praesens:     { type: SchemaType.STRING },
               praeteritum:  { type: SchemaType.STRING },
               partizip_2:   { type: SchemaType.STRING },
               hilfsverb:    { type: SchemaType.STRING },
@@ -62,7 +63,7 @@ const responseSchema: ResponseSchema = {
   required: ['cards'],
 };
 
-const SYSTEM_PROMPT = `Ты — преподаватель немецкого языка. Для каждого переданного слова или фразы создай карточку. Для существительных укажи артикль в front (например: 'der Hund'), gender, plural. Для глаголов укажи forms: {infinitiv, praeteritum, partizip_2, hilfsverb, trennbar}. Для прилагательных — forms: {komparativ, superlativ} если неправильные. Перевод на русский в back. Добавь 1-2 примера. Верни JSON по схеме.`;
+const SYSTEM_PROMPT = `Ты — преподаватель немецкого языка. Для каждого переданного слова или фразы создай карточку. Для существительных укажи артикль в front (например: 'der Hund'), gender, plural. Для глаголов укажи forms: {infinitiv, praesens (3-е лицо ед.ч., напр. «er wächst» → «wächst»), praeteritum, partizip_2, hilfsverb, trennbar}. Для прилагательных — forms: {komparativ, superlativ} если неправильные. Перевод на русский в back. Добавь 1-2 примера. Верни JSON по схеме.`;
 
 export async function POST(req: Request) {
   let body: unknown;
