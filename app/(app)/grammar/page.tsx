@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { BookOpen, ChevronLeft, Dumbbell, Trash2 } from 'lucide-react';
+import { BookOpen, ChevronLeft, Dumbbell, Trash2, Plus, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -73,6 +73,15 @@ export default function GrammarPage() {
   const [exerciseMode, setExerciseMode] = useState<ExerciseMode | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Добавление правила
+  const [addOpen, setAddOpen] = useState(false);
+  const [addTitle, setAddTitle] = useState('');
+  const [addExplanation, setAddExplanation] = useState('');
+  const [addTags, setAddTags] = useState('');
+  const [addAi, setAddAi] = useState(true);
+  const [saving, setSaving] = useState(false);
+  // Обогащение правила
+  const [enrichingId, setEnrichingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -107,6 +116,55 @@ export default function GrammarPage() {
       toast.error(t('grammar_delete_error'));
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function createRule() {
+    if (!addTitle.trim()) return;
+    setSaving(true);
+    try {
+      const tags = addTags.split(',').map((s) => s.trim()).filter(Boolean);
+      const explanation = addExplanation.trim() || addTitle.trim();
+      const res = await fetch('/api/grammar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: addTitle.trim(), explanation, tags }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
+      let note: GrammarNote = data.grammar_note;
+      // Автодополнение ИИ (если включено)
+      if (addAi) {
+        const er = await fetch(`/api/grammar/${note.id}/enrich`, { method: 'POST' });
+        const ed = await er.json().catch(() => ({}));
+        if (er.ok && ed.grammar_note) note = ed.grammar_note;
+      }
+      setNotes((prev) => [note, ...prev]);
+      toast.success(t('grammar_added'));
+      setAddOpen(false);
+      setAddTitle('');
+      setAddExplanation('');
+      setAddTags('');
+      setAddAi(true);
+    } catch (e) {
+      toast.error(t('grammar_add_error'), { description: e instanceof Error ? e.message : '' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function enrichNote(id: string) {
+    setEnrichingId(id);
+    try {
+      const res = await fetch(`/api/grammar/${id}/enrich`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
+      setNotes((prev) => prev.map((n) => (n.id === id ? data.grammar_note : n)));
+      toast.success(t('grammar_enriched'));
+    } catch (e) {
+      toast.error(t('grammar_enrich_error'), { description: e instanceof Error ? e.message : '' });
+    } finally {
+      setEnrichingId(null);
     }
   }
 
@@ -156,12 +214,18 @@ export default function GrammarPage() {
       {/* ══════════════════════════ TAB: RULES ══════════════════════════════ */}
       {tab === 'rules' && (
         <>
-          <Input
-            placeholder={t('grammar_search_placeholder')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="max-w-sm"
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder={t('grammar_search_placeholder')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="max-w-sm"
+            />
+            <Button onClick={() => setAddOpen(true)} className="shrink-0 gap-1.5">
+              <Plus className="size-4" />
+              <span className="hidden sm:inline">{t('grammar_add_btn')}</span>
+            </Button>
+          </div>
 
           {loading ? (
             <div className="flex flex-col gap-3">
@@ -211,20 +275,34 @@ export default function GrammarPage() {
                       </div>
                     )}
 
-                    {/* Quick-launch exercises + delete */}
+                    {/* Quick-launch exercises + enrich + delete */}
                     <div className="mt-4 pt-3 border-t flex items-center justify-between gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setActiveNote({ id: note.id, title: note.title });
-                          setExerciseMode(null);
-                          setTab('exercises');
-                        }}
-                      >
-                        <Dumbbell className="size-3.5 mr-1.5" />
-                        {t('grammar_practice_btn')}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setActiveNote({ id: note.id, title: note.title });
+                            setExerciseMode(null);
+                            setTab('exercises');
+                          }}
+                        >
+                          <Dumbbell className="size-3.5 mr-1.5" />
+                          {t('grammar_practice_btn')}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={enrichingId === note.id}
+                          onClick={() => enrichNote(note.id)}
+                        >
+                          {enrichingId === note.id ? (
+                            <><Loader2 className="size-3.5 mr-1.5 animate-spin" />{t('grammar_enriching')}</>
+                          ) : (
+                            <><Sparkles className="size-3.5 mr-1.5" />{t('grammar_enrich_btn')}</>
+                          )}
+                        </Button>
+                      </div>
                       <Button
                         size="sm"
                         variant="ghost"
@@ -373,6 +451,70 @@ export default function GrammarPage() {
             </Button>
             <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
               {deleting ? t('btn_loading') : t('btn_delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Add rule dialog ── */}
+      <Dialog open={addOpen} onOpenChange={(open) => { if (!saving) setAddOpen(open); }}>
+        <DialogContent showCloseButton={!saving}>
+          <DialogHeader>
+            <DialogTitle>{t('grammar_add_dialog_title')}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium">{t('grammar_add_title_label')}</label>
+              <Input
+                value={addTitle}
+                onChange={(e) => setAddTitle(e.target.value)}
+                placeholder={t('grammar_add_title_ph')}
+                disabled={saving}
+                autoFocus
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium">{t('grammar_add_expl_label')}</label>
+              <textarea
+                value={addExplanation}
+                onChange={(e) => setAddExplanation(e.target.value)}
+                placeholder={t('grammar_add_expl_ph')}
+                disabled={saving}
+                rows={4}
+                className="resize-none rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium">{t('grammar_add_tags_label')}</label>
+              <Input
+                value={addTags}
+                onChange={(e) => setAddTags(e.target.value)}
+                placeholder={t('grammar_add_tags_ph')}
+                disabled={saving}
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={addAi}
+                onChange={(e) => setAddAi(e.target.checked)}
+                disabled={saving}
+                className="size-4 accent-primary"
+              />
+              <Sparkles className="size-3.5 text-primary" />
+              {t('grammar_add_ai')}
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)} disabled={saving}>
+              {t('btn_cancel')}
+            </Button>
+            <Button onClick={createRule} disabled={saving || !addTitle.trim()}>
+              {saving ? (
+                <><Loader2 className="size-4 mr-1.5 animate-spin" />{t('btn_saving')}</>
+              ) : (
+                t('btn_save')
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
