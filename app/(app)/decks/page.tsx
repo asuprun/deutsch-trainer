@@ -1,6 +1,10 @@
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { DecksClient } from './decks-client';
 
+// Всегда рендерим на запросе — иначе список колод кэшируется на этапе билда
+// и новые колоды (из скринов/импорта) не появляются
+export const dynamic = 'force-dynamic';
+
 type Source = {
   id: string;
   image_path: string;
