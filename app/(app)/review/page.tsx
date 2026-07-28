@@ -12,6 +12,7 @@ import { RatingButtons, type RatingIntervals } from '@/components/rating-buttons
 import { TypingInput } from '@/components/typing-input';
 import { GenderDrill } from '@/components/gender-drill';
 import { VerbFormsDrill } from '@/components/verb-forms-drill';
+import { VerbRecognitionDrill } from '@/components/verb-recognition-drill';
 import { VerbPatterns } from '@/components/verb-patterns';
 import type { Grade } from 'ts-fsrs';
 import { useI18n } from '@/lib/i18n/context';
@@ -25,7 +26,8 @@ type QueueResponse = {
   due_count_total: number;
 };
 
-type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error' | 'gender' | 'verbforms' | 'verbpatterns';
+type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error' | 'gender' | 'verbforms' | 'verbrecognition' | 'verbpatterns';
+type VerbDir = 'forms' | 'recognition';
 type Mode = 'cards' | 'typing';
 type Direction = 'de-ru' | 'ru-de';
 type Training = 'words' | 'gender' | 'leeches' | 'verbforms';
@@ -54,6 +56,7 @@ function ReviewInner() {
   const [direction, setDirection] = useState<Direction>('de-ru');
   const [training, setTraining] = useState<Training>('words');
   const [verbPattern, setVerbPattern] = useState<string | null>(null);
+  const [verbDir, setVerbDir] = useState<VerbDir>('forms');
   const [limit, setLimit] = useState<number>(sourceId ? 500 : 20);
   const [totalDue, setTotalDue] = useState<number | null>(null);
   const [totalLeeches, setTotalLeeches] = useState<number | null>(null);
@@ -204,13 +207,28 @@ function ReviewInner() {
     );
   }
 
+  // ── Verb recognition drill (форма → инфинитив) ───────────────────────────────
+  if (status === 'verbrecognition') {
+    return (
+      <VerbRecognitionDrill
+        count={limit}
+        sourceId={sourceId}
+        pattern={verbPattern}
+        onExit={() => setStatus('lobby')}
+      />
+    );
+  }
+
   // ── Verb ablaut patterns (обзор + запуск дрилла по группе) ────────────────────
   if (status === 'verbpatterns') {
     return (
       <VerbPatterns
         sourceId={sourceId}
         onExit={() => setStatus('lobby')}
-        onDrill={(pattern) => { setVerbPattern(pattern); setStatus('verbforms'); }}
+        onDrill={(pattern) => {
+          setVerbPattern(pattern);
+          setStatus(verbDir === 'recognition' ? 'verbrecognition' : 'verbforms');
+        }}
       />
     );
   }
@@ -279,13 +297,32 @@ function ReviewInner() {
             </p>
           )}
           {training === 'verbforms' && (
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-3">
               <p className="text-muted-foreground text-sm">
                 <span className="text-2xl font-bold text-foreground tabular-nums">
                   {totalVerbs ?? '...'}
                 </span>{' '}
                 {t('review_lobby_verb_count')}
               </p>
+              {/* Направление: пишу формы / узнаю инфинитив */}
+              <div className="flex rounded-md border overflow-hidden">
+                <button
+                  onClick={() => setVerbDir('forms')}
+                  className={`px-3 py-1.5 text-xs transition-colors ${
+                    verbDir === 'forms' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {t('verbdir_forms')}
+                </button>
+                <button
+                  onClick={() => setVerbDir('recognition')}
+                  className={`px-3 py-1.5 text-xs transition-colors border-l ${
+                    verbDir === 'recognition' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {t('verbdir_recognition')}
+                </button>
+              </div>
               <Button variant="outline" size="sm" onClick={() => setStatus('verbpatterns')}>
                 {t('review_verb_patterns_btn')}
               </Button>
@@ -358,7 +395,10 @@ function ReviewInner() {
             size="lg"
             onClick={() => {
               if (training === 'gender') setStatus('gender');
-              else if (training === 'verbforms') { setVerbPattern(null); setStatus('verbforms'); }
+              else if (training === 'verbforms') {
+                setVerbPattern(null);
+                setStatus(verbDir === 'recognition' ? 'verbrecognition' : 'verbforms');
+              }
               else loadQueue(limit, training === 'leeches');
             }}
             className="mt-2 min-w-[160px]"
