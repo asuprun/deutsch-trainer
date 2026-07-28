@@ -12,6 +12,7 @@ import { RatingButtons, type RatingIntervals } from '@/components/rating-buttons
 import { TypingInput } from '@/components/typing-input';
 import { GenderDrill } from '@/components/gender-drill';
 import { VerbFormsDrill } from '@/components/verb-forms-drill';
+import { VerbPatterns } from '@/components/verb-patterns';
 import type { Grade } from 'ts-fsrs';
 import { useI18n } from '@/lib/i18n/context';
 
@@ -24,7 +25,7 @@ type QueueResponse = {
   due_count_total: number;
 };
 
-type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error' | 'gender' | 'verbforms';
+type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error' | 'gender' | 'verbforms' | 'verbpatterns';
 type Mode = 'cards' | 'typing';
 type Direction = 'de-ru' | 'ru-de';
 type Training = 'words' | 'gender' | 'leeches' | 'verbforms';
@@ -52,6 +53,7 @@ function ReviewInner() {
   const [mode, setMode] = useState<Mode>('cards');
   const [direction, setDirection] = useState<Direction>('de-ru');
   const [training, setTraining] = useState<Training>('words');
+  const [verbPattern, setVerbPattern] = useState<string | null>(null);
   const [limit, setLimit] = useState<number>(sourceId ? 500 : 20);
   const [totalDue, setTotalDue] = useState<number | null>(null);
   const [totalLeeches, setTotalLeeches] = useState<number | null>(null);
@@ -196,7 +198,19 @@ function ReviewInner() {
       <VerbFormsDrill
         count={limit}
         sourceId={sourceId}
+        pattern={verbPattern}
         onExit={() => setStatus('lobby')}
+      />
+    );
+  }
+
+  // ── Verb ablaut patterns (обзор + запуск дрилла по группе) ────────────────────
+  if (status === 'verbpatterns') {
+    return (
+      <VerbPatterns
+        sourceId={sourceId}
+        onExit={() => setStatus('lobby')}
+        onDrill={(pattern) => { setVerbPattern(pattern); setStatus('verbforms'); }}
       />
     );
   }
@@ -265,12 +279,17 @@ function ReviewInner() {
             </p>
           )}
           {training === 'verbforms' && (
-            <p className="text-muted-foreground text-sm">
-              <span className="text-2xl font-bold text-foreground tabular-nums">
-                {totalVerbs ?? '...'}
-              </span>{' '}
-              {t('review_lobby_verb_count')}
-            </p>
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-muted-foreground text-sm">
+                <span className="text-2xl font-bold text-foreground tabular-nums">
+                  {totalVerbs ?? '...'}
+                </span>{' '}
+                {t('review_lobby_verb_count')}
+              </p>
+              <Button variant="outline" size="sm" onClick={() => setStatus('verbpatterns')}>
+                {t('review_verb_patterns_btn')}
+              </Button>
+            </div>
           )}
 
           <div className="flex flex-col items-center gap-3">
@@ -339,7 +358,7 @@ function ReviewInner() {
             size="lg"
             onClick={() => {
               if (training === 'gender') setStatus('gender');
-              else if (training === 'verbforms') setStatus('verbforms');
+              else if (training === 'verbforms') { setVerbPattern(null); setStatus('verbforms'); }
               else loadQueue(limit, training === 'leeches');
             }}
             className="mt-2 min-w-[160px]"

@@ -37,10 +37,11 @@ function isOk(input: string, correct: string): boolean {
 type Props = {
   count: number;
   sourceId: string | null;
+  pattern?: string | null;
   onExit: () => void;
 };
 
-export function VerbFormsDrill({ count, sourceId, onExit }: Props) {
+export function VerbFormsDrill({ count, sourceId, pattern = null, onExit }: Props) {
   const { t } = useI18n();
   const { speak } = useTTSContext();
   const [status, setStatus] = useState<Status>('loading');
@@ -61,6 +62,7 @@ export function VerbFormsDrill({ count, sourceId, onExit }: Props) {
     try {
       const qs = new URLSearchParams({ limit: String(count) });
       if (sourceId) qs.set('source_id', sourceId);
+      if (pattern) qs.set('pattern', pattern);
       const res = await fetch(`/api/review/verbs?${qs}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -79,7 +81,7 @@ export function VerbFormsDrill({ count, sourceId, onExit }: Props) {
       setError(e instanceof Error ? e.message : String(e));
       setStatus('error');
     }
-  }, [count, sourceId]);
+  }, [count, sourceId, pattern]);
 
   useEffect(() => { load(); }, [load]);
 
