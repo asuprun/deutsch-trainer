@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createEmptyCard } from 'ts-fsrs';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
+import { normalizeTags } from '@/lib/utils';
 
 export const runtime = 'nodejs';
 
@@ -111,7 +112,7 @@ export async function POST(req: Request) {
     kind: 'vocab' as const,
     front: r[0].slice(0, 500),
     back: r[1].slice(0, 2000),
-    tags: r[2] ? r[2].split('::').map((t) => t.trim()).filter(Boolean).slice(0, 20) : [],
+    tags: r[2] ? normalizeTags(r[2].split('::')).slice(0, 20) : [],
     fsrs_state: fsrsBase,
     due_at: fsrsBase.due ?? now,
   }));

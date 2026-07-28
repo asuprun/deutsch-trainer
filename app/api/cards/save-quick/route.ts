@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createEmptyCard } from 'ts-fsrs';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
-import { normalizeGender, normalizeWordType } from '@/lib/utils';
+import { normalizeGender, normalizeWordType, normalizeTags } from '@/lib/utils';
 
 export const runtime = 'nodejs';
 
@@ -69,8 +69,8 @@ export async function POST(req: Request) {
     forms: c.forms ?? null,
     examples: c.examples ?? null,
     mnemonic: null,
-    // Объединяем общие теги партии с тегами карты (без дублей)
-    tags: Array.from(new Set([...sharedTags, ...(c.tags ?? [])])),
+    // Объединяем общие теги партии с тегами карты (нормализуем + без дублей)
+    tags: normalizeTags([...sharedTags, ...(c.tags ?? [])]),
     fsrs_state: fsrsBase,
     due_at: fsrsBase.due ?? now,
   }));

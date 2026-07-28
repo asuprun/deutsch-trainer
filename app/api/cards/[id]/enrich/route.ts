@@ -3,7 +3,7 @@ import { SchemaType, type ResponseSchema } from '@google/generative-ai';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { getGemini, callWithCascade } from '@/lib/gemini/client';
 import { trackGeminiUsage } from '@/lib/gemini/track-usage';
-import { normalizeGender, normalizeWordType } from '@/lib/utils';
+import { normalizeGender, normalizeWordType, normalizeTags } from '@/lib/utils';
 
 export const runtime = 'nodejs';
 
@@ -152,7 +152,7 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
   const updates: Record<string, unknown> = {
     word_type: wordType,
     back: enriched.back_corrected || card.back,
-    tags: enriched.tags ?? [],
+    tags: normalizeTags(enriched.tags),
     examples: enriched.examples ?? [],
   };
 

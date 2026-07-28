@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
+import { normalizeTags } from '@/lib/utils';
 
 export const runtime = 'nodejs';
 
@@ -63,7 +64,7 @@ export async function POST(req: Request) {
       title: parsed.data.title,
       explanation: parsed.data.explanation,
       examples: parsed.data.examples ?? null,
-      tags: parsed.data.tags ?? [],
+      tags: normalizeTags(parsed.data.tags),
       source_id: null,
     })
     .select('*')

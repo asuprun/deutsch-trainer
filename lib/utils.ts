@@ -48,3 +48,19 @@ export function normalizeWordType(w: string | null | undefined): string | null {
   if (s === 'other' || s === 'sonstiges') return 'other';
   return null;
 }
+
+/**
+ * Нормализует теги: обрезка/схлопывание пробелов, нижний регистр
+ * (кроме кодов уровня A1/A2/B1/B2/C1/C2 — они заглавные), удаление дублей.
+ */
+export function normalizeTags(tags: (string | null | undefined)[] | null | undefined): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of tags ?? []) {
+    const s = String(raw ?? '').trim().replace(/\s+/g, ' ');
+    if (!s) continue;
+    const n = /^[abc][12]$/i.test(s) ? s.toUpperCase() : s.toLowerCase();
+    if (!seen.has(n)) { seen.add(n); out.push(n); }
+  }
+  return out;
+}

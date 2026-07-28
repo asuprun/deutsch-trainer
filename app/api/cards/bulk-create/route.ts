@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createEmptyCard } from 'ts-fsrs';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
-import { normalizeGender, normalizeWordType } from '@/lib/utils';
+import { normalizeGender, normalizeWordType, normalizeTags } from '@/lib/utils';
 
 export const runtime = 'nodejs';
 
@@ -78,7 +78,7 @@ export async function POST(req: Request) {
     forms: c.forms ?? null,
     examples: c.examples ?? null,
     mnemonic: c.mnemonic ?? null,
-    tags: c.tags ?? [],
+    tags: normalizeTags(c.tags),
     fsrs_state: fsrsBase,
     due_at: fsrsBase.due ?? now,
   }));
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
     title: g.title,
     explanation: g.explanation,
     examples: g.examples ?? null,
-    tags: g.tags ?? [],
+    tags: normalizeTags(g.tags),
   }));
 
   const card_ids: string[] = [];

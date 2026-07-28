@@ -3,6 +3,7 @@ import { SchemaType, type ResponseSchema } from '@google/generative-ai';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { getGemini, callWithCascade } from '@/lib/gemini/client';
 import { trackGeminiUsage } from '@/lib/gemini/track-usage';
+import { normalizeTags } from '@/lib/utils';
 
 export const runtime = 'nodejs';
 
@@ -107,8 +108,8 @@ export async function POST(_req: Request, context: RouteContext) {
     .update({
       explanation: enriched.explanation_md,
       examples: enriched.examples ?? note.examples ?? null,
-      // объединяем старые и новые теги без дублей
-      tags: Array.from(new Set([...(note.tags ?? []), ...(enriched.tags ?? [])])),
+      // объединяем старые и новые теги (нормализуем + без дублей)
+      tags: normalizeTags([...(note.tags ?? []), ...(enriched.tags ?? [])]),
     })
     .eq('id', id)
     .select('*')
