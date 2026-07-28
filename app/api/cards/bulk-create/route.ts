@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createEmptyCard } from 'ts-fsrs';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
+import { normalizeGender } from '@/lib/utils';
 
 export const runtime = 'nodejs';
 
@@ -72,7 +73,7 @@ export async function POST(req: Request) {
     front: c.front,
     back: c.back,
     word_type: c.word_type ?? null,
-    gender: c.gender ?? null,
+    gender: normalizeGender(c.gender),
     plural: c.plural ?? null,
     forms: c.forms ?? null,
     examples: c.examples ?? null,

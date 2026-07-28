@@ -12,3 +12,18 @@ export function cn(...inputs: ClassValue[]) {
 export function stripArticle(s: string): string {
   return s.replace(/^\s*(der|die|das|ein|eine)\s+/i, '').trim();
 }
+
+/**
+ * Приводит род к каноничному артиклю der/die/das (ИИ иногда отдаёт
+ * neuter/female/m и т.п.). Неизвестное/пустое → null.
+ */
+export function normalizeGender(g: string | null | undefined): string | null {
+  const s = (g ?? '').toLowerCase().trim();
+  if (!s) return null;
+  if (s === 'der' || s === 'die' || s === 'das') return s;
+  if (['m', 'mask', 'maskulin', 'masculine', 'male', 'maskulinum'].includes(s)) return 'der';
+  if (['f', 'fem', 'feminin', 'feminine', 'female', 'femininum'].includes(s)) return 'die';
+  if (['n', 'neut', 'neutrum', 'neutral', 'neuter'].includes(s)) return 'das';
+  if (s === 'der/die' || s === 'die/der') return 'der/die';
+  return null;
+}

@@ -3,6 +3,7 @@ import { SchemaType, type ResponseSchema } from '@google/generative-ai';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { getGemini, callWithCascade } from '@/lib/gemini/client';
 import { trackGeminiUsage } from '@/lib/gemini/track-usage';
+import { normalizeGender } from '@/lib/utils';
 
 export const runtime = 'nodejs';
 
@@ -156,7 +157,7 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
 
   // Only update gender/plural for nouns
   if (enriched.word_type === 'noun') {
-    updates.gender = enriched.gender || null;
+    updates.gender = normalizeGender(enriched.gender);
     updates.plural = enriched.plural || null;
   }
 
