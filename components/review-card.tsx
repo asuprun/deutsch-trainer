@@ -39,18 +39,19 @@ export function ReviewCard({ card, flipped, autoTts = true, reversed = false }: 
   const { t } = useI18n();
   const { speak } = useTTSContext();
 
-  // Word type abbreviation labels
+  // Ярлыки частей речи. Ключи — каноничные значения word_type (полные англ. слова)
   const WORD_TYPE_LABEL: Record<string, string> = {
-    noun:  t('revcard_wt_noun'),
-    verb:  t('revcard_wt_verb'),
-    adj:   t('revcard_wt_adj'),
-    adv:   t('revcard_wt_adv'),
-    prep:  t('revcard_wt_prep'),
-    conj:  t('revcard_wt_conj'),
-    pron:  t('revcard_wt_pron'),
-    num:   t('revcard_wt_num'),
-    interj: t('revcard_wt_interj'),
-    other: '',
+    noun:         t('revcard_wt_noun'),
+    verb:         t('revcard_wt_verb'),
+    adjective:    t('revcard_wt_adj'),
+    adverb:       t('revcard_wt_adv'),
+    preposition:  t('revcard_wt_prep'),
+    conjunction:  t('revcard_wt_conj'),
+    pronoun:      t('revcard_wt_pron'),
+    numeral:      t('revcard_wt_num'),
+    interjection: t('revcard_wt_interj'),
+    phrase:       '',
+    other:        '',
   };
 
   useEffect(() => {

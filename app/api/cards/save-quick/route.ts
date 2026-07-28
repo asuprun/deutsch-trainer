@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createEmptyCard } from 'ts-fsrs';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
-import { normalizeGender } from '@/lib/utils';
+import { normalizeGender, normalizeWordType } from '@/lib/utils';
 
 export const runtime = 'nodejs';
 
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
     kind: 'vocab' as const,
     front: c.front,
     back: c.back,
-    word_type: c.word_type ?? null,
+    word_type: normalizeWordType(c.word_type),
     gender: normalizeGender(c.gender),
     plural: c.plural ?? null,
     forms: c.forms ?? null,

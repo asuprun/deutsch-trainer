@@ -27,3 +27,24 @@ export function normalizeGender(g: string | null | undefined): string | null {
   if (s === 'der/die' || s === 'die/der') return 'der/die';
   return null;
 }
+
+/**
+ * Каноничная часть речи. ИИ/импорт дают verb/Verb, adjective/adj/Adjektiv,
+ * Substantiv, Konjunktion и т.п. Приводим к единому набору. Неизвестное → null.
+ */
+export function normalizeWordType(w: string | null | undefined): string | null {
+  const s = (w ?? '').toLowerCase().trim();
+  if (!s) return null;
+  if (['noun', 'nomen', 'substantiv', 'n.'].includes(s)) return 'noun';
+  if (['verb', 'v.', 'verbum'].includes(s)) return 'verb';
+  if (['adjective', 'adj', 'adj.', 'adjektiv'].includes(s)) return 'adjective';
+  if (['adverb', 'adv', 'adv.', 'adverbium'].includes(s)) return 'adverb';
+  if (['preposition', 'prep', 'prep.', 'präposition', 'praeposition'].includes(s)) return 'preposition';
+  if (['conjunction', 'conj', 'conj.', 'konjunktion'].includes(s)) return 'conjunction';
+  if (['pronoun', 'pron', 'pron.', 'pronomen'].includes(s)) return 'pronoun';
+  if (['numeral', 'num', 'num.', 'numerale', 'zahlwort'].includes(s)) return 'numeral';
+  if (['interjection', 'interj', 'interjektion'].includes(s)) return 'interjection';
+  if (s.includes('phrase') || s.includes('redewendung') || s.includes('kollokation')) return 'phrase';
+  if (s === 'other' || s === 'sonstiges') return 'other';
+  return null;
+}

@@ -3,7 +3,7 @@ import { SchemaType, type ResponseSchema } from '@google/generative-ai';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { getGemini, callWithCascade } from '@/lib/gemini/client';
 import { trackGeminiUsage } from '@/lib/gemini/track-usage';
-import { normalizeGender } from '@/lib/utils';
+import { normalizeGender, normalizeWordType } from '@/lib/utils';
 
 export const runtime = 'nodejs';
 
@@ -148,21 +148,22 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
     return { error: { code: 'GEMINI_ERROR', message: userMsg } };
   }
 
+  const wordType = normalizeWordType(enriched.word_type) ?? card.word_type;
   const updates: Record<string, unknown> = {
-    word_type: enriched.word_type || card.word_type,
+    word_type: wordType,
     back: enriched.back_corrected || card.back,
     tags: enriched.tags ?? [],
     examples: enriched.examples ?? [],
   };
 
   // Only update gender/plural for nouns
-  if (enriched.word_type === 'noun') {
+  if (wordType === 'noun') {
     updates.gender = normalizeGender(enriched.gender);
     updates.plural = enriched.plural || null;
   }
 
   // Заполняем формы для глаголов — тогда они попадут в дрилл форм
-  if (enriched.word_type === 'verb' && enriched.forms?.praeteritum && enriched.forms?.partizip_2) {
+  if (wordType === 'verb' && enriched.forms?.praeteritum && enriched.forms?.partizip_2) {
     const f = enriched.forms;
     updates.forms = {
       infinitiv: card.front,
