@@ -26,6 +26,8 @@ export async function GET(req: Request) {
     .eq('word_type', 'verb')
     .not('forms->>praeteritum', 'is', null)
     .not('forms->>partizip_2', 'is', null)
+    // «Слабые вперёд»: сначала чаще проваленные, затем самые созревшие по расписанию
+    .order('lapses', { ascending: false })
     .order('due_at', { ascending: true })
     .limit(limit);
 

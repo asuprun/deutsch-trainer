@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { toast } from 'sonner';
 import { Loader2, X, RotateCw, Home, Check, XCircle, ArrowRight, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -47,12 +46,14 @@ export function VerbFormsDrill({ count, sourceId, onExit }: Props) {
   const [status, setStatus] = useState<Status>('loading');
   const [verbs, setVerbs] = useState<Verb[]>([]);
   const [idx, setIdx] = useState(0);
+  const [praes, setPraes] = useState('');
   const [praet, setPraet] = useState('');
   const [part, setPart] = useState('');
+  const [hilf, setHilf] = useState<'haben' | 'sein' | null>(null);
   const [checked, setChecked] = useState(false);
   const [score, setScore] = useState(0);
   const [error, setError] = useState('');
-  const praetRef = useRef<HTMLInputElement>(null);
+  const firstRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setStatus('loading');
@@ -69,12 +70,11 @@ export function VerbFormsDrill({ count, sourceId, onExit }: Props) {
       if (!data.cards?.length) { setStatus('empty'); return; }
       setVerbs(data.cards);
       setIdx(0);
-      setPraet('');
-      setPart('');
+      setPraes(''); setPraet(''); setPart(''); setHilf(null);
       setChecked(false);
       setScore(0);
       setStatus('active');
-      setTimeout(() => praetRef.current?.focus(), 80);
+      setTimeout(() => firstRef.current?.focus(), 80);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setStatus('error');
@@ -85,20 +85,37 @@ export function VerbFormsDrill({ count, sourceId, onExit }: Props) {
 
   const current = status === 'active' ? verbs[idx] : null;
 
+  // Какие поля активны для этого глагола
+  const hasPraes = !!current?.forms.praesens;
+  const hasHilf = !!current?.forms.hilfsverb;
+  const storedHilf = (current?.forms.hilfsverb ?? '').toLowerCase();
+
+  const praesOk = !hasPraes || (current ? isOk(praes, current.forms.praesens ?? '') : false);
   const praetOk = current ? isOk(praet, current.forms.praeteritum ?? '') : false;
   const partOk = current ? isOk(part, current.forms.partizip_2 ?? '') : false;
+  const hilfOk = !hasHilf || (hilf != null && storedHilf.includes(hilf));
 
   const check = useCallback(async () => {
     if (!current || checked) return;
-    if (!praet.trim() && !part.trim()) return;
+    // нужно хоть что-то ввести
+    if (!praet.trim() && !part.trim() && !praes.trim() && !hilf) return;
     setChecked(true);
-    const okCount = (isOk(praet, current.forms.praeteritum ?? '') ? 1 : 0) +
-                    (isOk(part, current.forms.partizip_2 ?? '') ? 1 : 0);
-    if (okCount === 2) setScore((s) => s + 1);
-    // Озвучиваем правильные формы
-    speak(`${current.forms.praeteritum}, ${current.forms.partizip_2}`);
-    // Оценка в FSRS: 2 верных → «хорошо», 1 → «сложно», 0 → «снова»
-    const rating = (okCount === 2 ? 3 : okCount === 1 ? 2 : 1) as Grade;
+
+    const checks: boolean[] = [praetOk, partOk];
+    if (hasPraes) checks.push(praesOk);
+    if (hasHilf) checks.push(hilfOk);
+    const okCount = checks.filter(Boolean).length;
+    const allOk = okCount === checks.length;
+    if (allOk) setScore((s) => s + 1);
+
+    speak(
+      [hasPraes ? current.forms.praesens : null, current.forms.praeteritum, current.forms.partizip_2]
+        .filter(Boolean)
+        .join(', '),
+    );
+
+    // FSRS: всё верно → «хорошо», часть → «сложно», ничего → «снова»
+    const rating = (allOk ? 3 : okCount >= 1 ? 2 : 1) as Grade;
     try {
       await fetch('/api/review/answer', {
         method: 'POST',
@@ -108,17 +125,16 @@ export function VerbFormsDrill({ count, sourceId, onExit }: Props) {
     } catch {
       toast.error(t('review_save_error'));
     }
-  }, [current, checked, praet, part, speak, t]);
+  }, [current, checked, praes, praet, part, hilf, hasPraes, hasHilf, praesOk, praetOk, partOk, hilfOk, speak, t]);
 
   const next = useCallback(() => {
     setChecked(false);
-    setPraet('');
-    setPart('');
+    setPraes(''); setPraet(''); setPart(''); setHilf(null);
     if (idx + 1 >= verbs.length) {
       setStatus('done');
     } else {
       setIdx((i) => i + 1);
-      setTimeout(() => praetRef.current?.focus(), 80);
+      setTimeout(() => firstRef.current?.focus(), 80);
     }
   }, [idx, verbs.length]);
 
@@ -134,6 +150,8 @@ export function VerbFormsDrill({ count, sourceId, onExit }: Props) {
     }, 350);
     return () => { clearTimeout(id); if (handler) window.removeEventListener('keydown', handler); };
   }, [checked, next]);
+
+  const allOk = praesOk && praetOk && partOk && hilfOk;
 
   // ── Loading / error / empty / done ──
   if (status === 'loading') {
@@ -183,6 +201,9 @@ export function VerbFormsDrill({ count, sourceId, onExit }: Props) {
 
   const fieldClass = (ok: boolean) =>
     checked ? (ok ? 'border-emerald-500/60' : 'border-rose-500/60') : '';
+  const onFieldKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !checked) { e.preventDefault(); check(); }
+  };
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-background">
@@ -213,44 +234,86 @@ export function VerbFormsDrill({ count, sourceId, onExit }: Props) {
 
           {/* Поля ввода */}
           <div className="w-full max-w-sm flex flex-col gap-3">
+            {hasPraes && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">Präsens</label>
+                <Input
+                  ref={firstRef}
+                  value={praes}
+                  onChange={(e) => setPraes(e.target.value)}
+                  onKeyDown={onFieldKey}
+                  disabled={checked}
+                  placeholder="z.B. nimmt"
+                  autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+                  className={cn('h-11 text-base', fieldClass(praesOk))}
+                />
+                {checked && !praesOk && (
+                  <span className="text-sm text-emerald-600 dark:text-emerald-400">{current.forms.praesens}</span>
+                )}
+              </div>
+            )}
+
             <div className="flex flex-col gap-1">
               <label className="text-xs text-muted-foreground">Präteritum</label>
               <Input
-                ref={praetRef}
+                ref={hasPraes ? undefined : firstRef}
                 value={praet}
                 onChange={(e) => setPraet(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !checked) { e.preventDefault(); check(); } }}
+                onKeyDown={onFieldKey}
                 disabled={checked}
                 placeholder="z.B. nahm"
                 autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
                 className={cn('h-11 text-base', fieldClass(praetOk))}
               />
               {checked && !praetOk && (
-                <span className="text-sm text-emerald-600 dark:text-emerald-400">
-                  {current.forms.praeteritum}
-                </span>
+                <span className="text-sm text-emerald-600 dark:text-emerald-400">{current.forms.praeteritum}</span>
               )}
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted-foreground">
-                Partizip II{current.forms.hilfsverb ? ` (${current.forms.hilfsverb})` : ''}
-              </label>
+              <label className="text-xs text-muted-foreground">Partizip II</label>
               <Input
                 value={part}
                 onChange={(e) => setPart(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !checked) { e.preventDefault(); check(); } }}
+                onKeyDown={onFieldKey}
                 disabled={checked}
                 placeholder="z.B. genommen"
                 autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
                 className={cn('h-11 text-base', fieldClass(partOk))}
               />
               {checked && !partOk && (
-                <span className="text-sm text-emerald-600 dark:text-emerald-400">
-                  {current.forms.partizip_2}
-                </span>
+                <span className="text-sm text-emerald-600 dark:text-emerald-400">{current.forms.partizip_2}</span>
               )}
             </div>
+
+            {/* Hilfsverb — выбор haben / sein */}
+            {hasHilf && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">Hilfsverb (Perfekt)</label>
+                <div className="flex gap-2">
+                  {(['haben', 'sein'] as const).map((h) => {
+                    const isCorrect = checked && storedHilf.includes(h);
+                    const isWrongPick = checked && hilf === h && !storedHilf.includes(h);
+                    return (
+                      <button
+                        key={h}
+                        onClick={() => !checked && setHilf(h)}
+                        disabled={checked}
+                        className={cn(
+                          'flex-1 rounded-md border py-2 text-sm font-medium transition-colors',
+                          !checked && hilf === h && 'bg-primary text-primary-foreground border-primary',
+                          !checked && hilf !== h && 'hover:bg-muted',
+                          isCorrect && 'border-emerald-500/70 text-emerald-600 dark:text-emerald-400',
+                          isWrongPick && 'border-rose-500/70 text-rose-600 dark:text-rose-400 line-through',
+                        )}
+                      >
+                        {h}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {checked ? (
               <Button size="lg" onClick={next} className="w-full mt-1">
@@ -261,7 +324,7 @@ export function VerbFormsDrill({ count, sourceId, onExit }: Props) {
               <Button
                 size="lg"
                 onClick={check}
-                disabled={!praet.trim() && !part.trim()}
+                disabled={!praet.trim() && !part.trim() && !praes.trim() && !hilf}
                 className="w-full mt-1"
               >
                 {t('gramex_check')}
@@ -272,9 +335,9 @@ export function VerbFormsDrill({ count, sourceId, onExit }: Props) {
             {checked && (
               <div className={cn(
                 'flex items-center justify-center gap-2 text-sm font-medium',
-                praetOk && partOk ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400',
+                allOk ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400',
               )}>
-                {praetOk && partOk
+                {allOk
                   ? <><Check className="size-4" /> {t('gramex_correct')}</>
                   : <><XCircle className="size-4" /> {t('gramex_wrong')}</>}
               </div>
