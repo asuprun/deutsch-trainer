@@ -14,6 +14,7 @@ import { GenderDrill } from '@/components/gender-drill';
 import { VerbFormsDrill } from '@/components/verb-forms-drill';
 import { VerbRecognitionDrill } from '@/components/verb-recognition-drill';
 import { VerbPatterns } from '@/components/verb-patterns';
+import { DeckClozeSession } from '@/components/deck-cloze-session';
 import type { Grade } from 'ts-fsrs';
 import { useI18n } from '@/lib/i18n/context';
 
@@ -26,7 +27,7 @@ type QueueResponse = {
   due_count_total: number;
 };
 
-type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error' | 'gender' | 'verbforms' | 'verbrecognition' | 'verbpatterns';
+type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error' | 'gender' | 'verbforms' | 'verbrecognition' | 'verbpatterns' | 'cloze';
 type VerbDir = 'forms' | 'recognition';
 type Mode = 'cards' | 'typing';
 type Direction = 'de-ru' | 'ru-de';
@@ -45,7 +46,10 @@ function ReviewInner() {
   const searchParams = useSearchParams();
   const sourceId = searchParams.get('source_id');
   const { t } = useI18n();
-  const [status, setStatus] = useState<Status>('lobby');
+  // ?cloze=1 из колоды — сразу открываем текст с пропусками
+  const [status, setStatus] = useState<Status>(
+    searchParams.get('cloze') === '1' && sourceId ? 'cloze' : 'lobby',
+  );
   const [queue, setQueue] = useState<QueueCard[]>([]);
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -219,6 +223,11 @@ function ReviewInner() {
     );
   }
 
+  // ── Текст с пропусками по колоде ─────────────────────────────────────────────
+  if (status === 'cloze' && sourceId) {
+    return <DeckClozeSession sourceId={sourceId} onExit={() => setStatus('lobby')} />;
+  }
+
   // ── Verb ablaut patterns (обзор + запуск дрилла по группе) ────────────────────
   if (status === 'verbpatterns') {
     return (
@@ -250,9 +259,15 @@ function ReviewInner() {
 
         <main className="flex-1 flex flex-col items-center justify-center gap-6 p-6 text-center">
           {sourceId && (
-            <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
-              из колоды
-            </span>
+            <div className="flex flex-col items-center gap-3">
+              <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
+                из колоды
+              </span>
+              {/* Текст с пропусками — доступен только для колоды */}
+              <Button variant="outline" size="sm" onClick={() => setStatus('cloze')}>
+                {t('cloze_btn')}
+              </Button>
+            </div>
           )}
 
           {/* Тип тренировки */}

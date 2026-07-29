@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FolderOpen, GraduationCap } from 'lucide-react';
+import { FolderOpen, GraduationCap, BookText } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/context';
 
 type SourceWithCounts = {
@@ -85,11 +85,16 @@ export function DecksClient({ sources }: { sources: SourceWithCounts[] }) {
                 </CardContent>
               </Link>
               {source.card_count > 0 && (
-                <div className="px-6 pb-4">
-                  <Button asChild size="sm" className="w-full gap-2">
+                <div className="px-6 pb-4 flex gap-2">
+                  <Button asChild size="sm" className="flex-1 gap-2">
                     <Link href={`/review?source_id=${source.id}`}>
                       <GraduationCap className="size-3.5" />
                       {t('decks_train')}
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline" title={t('cloze_title')}>
+                    <Link href={`/review?source_id=${source.id}&cloze=1`}>
+                      <BookText className="size-3.5" />
                     </Link>
                   </Button>
                 </div>
