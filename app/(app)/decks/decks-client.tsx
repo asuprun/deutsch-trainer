@@ -15,6 +15,9 @@ type SourceWithCounts = {
   created_at: string;
   card_count: number;
   grammar_count: number;
+  fresh: number;
+  learning: number;
+  mature: number;
 };
 
 function formatDate(iso: string) {
@@ -72,7 +75,7 @@ export function DecksClient({ sources }: { sources: SourceWithCounts[] }) {
                     {formatDate(source.created_at)}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="pb-2">
+                <CardContent className="pb-2 flex flex-col gap-2">
                   <p className="text-sm text-muted-foreground">
                     {source.card_count} {cardCountLabel(source.card_count)}
                     {source.grammar_count > 0 && (
@@ -82,6 +85,25 @@ export function DecksClient({ sources }: { sources: SourceWithCounts[] }) {
                       </>
                     )}
                   </p>
+
+                  {/* Прогресс освоения */}
+                  {source.card_count > 0 && (() => {
+                    const pct = Math.round((source.mature / source.card_count) * 100);
+                    return (
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                          <span className="bg-emerald-500" style={{ width: `${(source.mature / source.card_count) * 100}%` }} />
+                          <span className="bg-amber-500" style={{ width: `${(source.learning / source.card_count) * 100}%` }} />
+                        </div>
+                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground tabular-nums">
+                          <span className="font-medium text-foreground">{pct}%</span>
+                          <span className="text-emerald-600 dark:text-emerald-400">{t('decks_prog_mature')} {source.mature}</span>
+                          {source.learning > 0 && <span className="text-amber-600 dark:text-amber-500">{t('decks_prog_learning')} {source.learning}</span>}
+                          {source.fresh > 0 && <span>{t('decks_prog_fresh')} {source.fresh}</span>}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Link>
               {source.card_count > 0 && (
