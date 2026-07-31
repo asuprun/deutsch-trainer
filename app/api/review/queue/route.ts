@@ -19,6 +19,8 @@ export async function GET(req: Request) {
   const tag = url.searchParams.get('tag');
   const sourceId = url.searchParams.get('source_id');
   const leeches = url.searchParams.get('leeches') === '1';
+  // all=1 — тренировать все карты, игнорируя расписание (для колоды, когда 0 «созрели»)
+  const all = url.searchParams.get('all') === '1';
 
   const sb = getSupabaseAdmin();
   const nowIso = new Date().toISOString();
@@ -33,6 +35,11 @@ export async function GET(req: Request) {
     query = query
       .gte('lapses', LEECH_MIN_LAPSES)
       .order('lapses', { ascending: false })
+      .limit(limit);
+  } else if (all) {
+    // Вся колода: без фильтра по расписанию (сначала созревшие)
+    query = query
+      .order('due_at', { ascending: true })
       .limit(limit);
   } else {
     // Обычная очередь: только созревшие по расписанию

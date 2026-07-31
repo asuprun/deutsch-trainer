@@ -20,13 +20,47 @@ const bodySchema = z.object({ source_id: z.string().uuid(), fresh: z.boolean().o
 const responseSchema: ResponseSchema = {
   type: SchemaType.OBJECT,
   properties: {
-    text: { type: SchemaType.STRING, description: 'Связный немецкий текст (A2-B1) с пропусками ___ на месте выбранных слов' },
-    answers: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: 'Точная форма слова для каждого ___ по порядку' },
-    hints: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: 'Русская подсказка (перевод) для каждого пропуска по порядку' },
+    text: { type: SchemaType.STRING, description: 'Полный связный немецкий текст (A2-B1) БЕЗ пропусков — со всеми словами на месте' },
+    blanks: {
+      type: SchemaType.ARRAY,
+      description: 'Слова из колоды, которые встречаются в тексте и которые надо спрятать',
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          surface: { type: SchemaType.STRING, description: 'Слово ТОЧНО в той форме, как оно стоит в тексте (напр. "benötigen", "Steuern")' },
+          hint: { type: SchemaType.STRING, description: 'Русский перевод этого слова (подсказка)' },
+        },
+        required: ['surface', 'hint'],
+      },
+    },
     translation: { type: SchemaType.STRING, description: 'Перевод всего текста на русский' },
   },
-  required: ['text', 'answers', 'hints', 'translation'],
+  required: ['text', 'blanks', 'translation'],
 };
+
+/** Ставит пропуски ___ на месте слов server-side (не доверяем Gemini расстановку) */
+function makeBlanks(text: string, blanks: { surface: string; hint: string }[]) {
+  const items = blanks
+    .map((b) => ({ ...b, surface: (b.surface ?? '').trim() }))
+    .filter((b) => b.surface)
+    .map((b) => ({ ...b, pos: text.indexOf(b.surface) }))
+    .filter((b) => b.pos >= 0)
+    .sort((a, b) => a.pos - b.pos);
+
+  let out = '';
+  let cursor = 0;
+  const answers: string[] = [];
+  const hints: string[] = [];
+  for (const it of items) {
+    if (it.pos < cursor) continue; // перекрытие — пропускаем
+    out += text.slice(cursor, it.pos) + '___';
+    answers.push(it.surface);
+    hints.push(it.hint ?? '');
+    cursor = it.pos + it.surface.length;
+  }
+  out += text.slice(cursor);
+  return { text: out, answers, hints };
+}
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -49,7 +83,9 @@ export async function POST(req: Request) {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (cached?.cloze) return NextResponse.json({ ...cached.cloze, cached: true });
+    if (cached?.cloze && Array.isArray(cached.cloze.answers) && cached.cloze.answers.length > 0) {
+      return NextResponse.json({ ...cached.cloze, cached: true });
+    }
   } catch { /* таблицы может не быть — генерируем заново */ }
 
   // ── Данные колоды ───────────────────────────────────────────────────────────
@@ -77,12 +113,11 @@ export async function POST(req: Request) {
 ${wordList}
 
 ТРЕБОВАНИЯ:
-- text: связный текст на немецком. Слова из списка, которые ты используешь, ЗАМЕНИ на «___» (ровно один пропуск на слово, в правильной грамматической форме).
-- answers: массив точных форм слов, которые должны стоять в пропусках, строго по порядку появления ___.
-- hints: массив русских подсказок (перевод базового слова) для каждого пропуска, по порядку.
-- translation: перевод всего текста (уже без пропусков, с вставленными словами) на русский.
-- Количество ___ в text = длине answers = длине hints.
-- Текст должен читаться как цельный рассказ, а не набор предложений.`;
+- text: ПОЛНЫЙ связный текст на немецком со всеми словами на месте (НЕ ставь никаких пропусков и «___» — пиши обычный текст).
+- blanks: для 8-14 слов из списка, которые реально встречаются в тексте, укажи surface (слово ТОЧНО в той форме, как оно стоит в тексте — с той же заглавной буквой и окончанием) и hint (русский перевод).
+- Спрятать нужно именно СЛОВА КОЛОДЫ, а не служебные слова.
+- translation: перевод всего текста на русский.
+- Текст должен читаться как цельный рассказ (5-8 предложений), а не набор фраз.`;
 
   try {
     const { result: data } = await callWithCascade(async (modelName) => {
@@ -101,12 +136,23 @@ ${wordList}
       return parsedRes;
     });
 
+    const rawText = String(data.text ?? '');
+    const rawBlanks = (data.blanks ?? []).map((b: { surface?: string; hint?: string }) => ({
+      surface: String(b?.surface ?? ''),
+      hint: String(b?.hint ?? ''),
+    }));
+    const blanked = makeBlanks(rawText, rawBlanks);
+
     const cloze = {
-      text: String(data.text ?? ''),
-      answers: (data.answers ?? []).map((s: unknown) => String(s)),
-      hints: (data.hints ?? []).map((s: unknown) => String(s)),
+      text: blanked.text,
+      answers: blanked.answers,
+      hints: blanked.hints,
       translation: String(data.translation ?? ''),
     };
+
+    if (cloze.answers.length === 0) {
+      return err('NO_BLANKS', 'Не удалось составить пропуски. Попробуй ещё раз.', 502);
+    }
 
     // Кэшируем (fire-and-forget, мягко)
     void db.from('deck_cloze_cache').insert({ source_id, cloze }).then(({ error }) => {

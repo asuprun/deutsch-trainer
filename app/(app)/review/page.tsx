@@ -71,8 +71,10 @@ function ReviewInner() {
     if (status !== 'lobby') return;
     const base = new URLSearchParams({ limit: '1' });
     if (sourceId) base.set('source_id', sourceId);
-    // Обычная очередь
-    fetch(`/api/review/queue?${base}`)
+    // Слова: для колоды считаем ВСЮ колоду (all=1), для общей тренировки — только созревшие
+    const wordsQs = new URLSearchParams(base);
+    if (sourceId) wordsQs.set('all', '1');
+    fetch(`/api/review/queue?${wordsQs}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data && typeof data.due_count_total === 'number') setTotalDue(data.due_count_total);
@@ -103,6 +105,8 @@ function ReviewInner() {
       const qs = new URLSearchParams({ limit: String(selectedLimit) });
       if (sourceId) qs.set('source_id', sourceId);
       if (leeches) qs.set('leeches', '1');
+      // Колода: тренируем все карты, даже если 0 «созрели» по расписанию
+      else if (sourceId) qs.set('all', '1');
       const res = await fetch(`/api/review/queue?${qs}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -300,7 +304,7 @@ function ReviewInner() {
               <span className="text-2xl font-bold text-foreground tabular-nums">
                 {totalDue ?? '...'}
               </span>{' '}
-              {t('review_lobby_due')}
+              {sourceId ? t('review_lobby_deck_count') : t('review_lobby_due')}
             </p>
           )}
           {training === 'leeches' && (
