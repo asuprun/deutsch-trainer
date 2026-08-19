@@ -7,8 +7,10 @@ export const runtime = 'nodejs';
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 500;
 
-// Слово считается «трудным» (leech), если проваливалось столько раз и больше
-const LEECH_MIN_LAPSES = 3;
+// «Трудное» слово: высокая сложность по FSRS ИЛИ хотя бы один провал.
+// (lapses почти всегда 0 — difficulty гораздо информативнее)
+const HARD_MIN_DIFFICULTY = 7; // шкала FSRS 1..10
+const HARD_MIN_LAPSES = 1;
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -31,22 +33,15 @@ export async function GET(req: Request) {
     .neq('kind', 'grammar_rule');   // грамматика тренируется в разделе «Грамматика»
 
   if (leeches) {
-    // Трудные слова: игнорируем расписание, сортируем от самых проваливаемых
-    query = query
-      .gte('lapses', LEECH_MIN_LAPSES)
-      .order('lapses', { ascending: false })
-      .limit(limit);
+    // Трудные: фильтр по difficulty/lapses делаем в JS (jsonb численно не отфильтровать),
+    // поэтому тянем всё и обрабатываем ниже. Только реально повторённые карты.
+    query = query.gt('reps', 0);
   } else if (all) {
     // Вся колода: без фильтра по расписанию (сначала созревшие)
-    query = query
-      .order('due_at', { ascending: true })
-      .limit(limit);
+    query = query.order('due_at', { ascending: true }).limit(limit);
   } else {
     // Обычная очередь: только созревшие по расписанию
-    query = query
-      .lte('due_at', nowIso)
-      .order('due_at', { ascending: true })
-      .limit(limit);
+    query = query.lte('due_at', nowIso).order('due_at', { ascending: true }).limit(limit);
   }
 
   if (tag) query = query.contains('tags', [tag]);
@@ -61,8 +56,23 @@ export async function GET(req: Request) {
     );
   }
 
+  let rows = data ?? [];
+  let total = count ?? rows.length;
+
+  if (leeches) {
+    const diff = (c: { fsrs_state: unknown }) =>
+      (c.fsrs_state as CardJson | null)?.difficulty ?? 0;
+    const lap = (c: { lapses: number | null }) => c.lapses ?? 0;
+    const hardness = (c: { fsrs_state: unknown; lapses: number | null }) => diff(c) + lap(c) * 2;
+    rows = rows
+      .filter((c) => diff(c) >= HARD_MIN_DIFFICULTY || lap(c) >= HARD_MIN_LAPSES)
+      .sort((a, b) => hardness(b) - hardness(a));
+    total = rows.length;         // счётчик = сколько всего трудных
+    rows = rows.slice(0, limit); // самые трудные — вперёд
+  }
+
   const now = new Date();
-  const queue = (data ?? []).map((card) => {
+  const queue = rows.map((card) => {
     const state = card.fsrs_state as CardJson | null;
     let intervals = null;
     if (state) {
@@ -72,14 +82,11 @@ export async function GET(req: Request) {
         intervals = null;
       }
     }
-    return {
-      ...card,
-      intervals,
-    };
+    return { ...card, intervals };
   });
 
   return NextResponse.json({
     queue,
-    due_count_total: count ?? queue.length,
+    due_count_total: total,
   });
 }
