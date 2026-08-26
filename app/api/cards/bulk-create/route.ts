@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createEmptyCard } from 'ts-fsrs';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
-import { normalizeGender, normalizeWordType, normalizeTags } from '@/lib/utils';
+import { normalizeGender, normalizeWordType, normalizeTags, stripInlineForms } from '@/lib/utils';
 
 export const runtime = 'nodejs';
 
@@ -67,12 +67,15 @@ export async function POST(req: Request) {
   const emptyCard = createEmptyCard();
   const fsrsBase = JSON.parse(JSON.stringify(emptyCard));
 
-  const cardRows = cards.map((c) => ({
+  const cardRows = cards.map((c) => {
+    const wt = normalizeWordType(c.word_type);
+    return {
     source_id,
     kind: c.kind,
-    front: c.front,
+    // У глаголов обрезаем формы в скобках из леммы («verbieten (…)» → «verbieten»)
+    front: wt === 'verb' ? stripInlineForms(c.front) : c.front,
     back: c.back,
-    word_type: normalizeWordType(c.word_type),
+    word_type: wt,
     gender: normalizeGender(c.gender),
     plural: c.plural ?? null,
     forms: c.forms ?? null,
@@ -81,7 +84,8 @@ export async function POST(req: Request) {
     tags: normalizeTags(c.tags),
     fsrs_state: fsrsBase,
     due_at: fsrsBase.due ?? now,
-  }));
+    };
+  });
 
   const grammarRows = grammar_notes.map((g) => ({
     source_id,

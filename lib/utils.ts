@@ -50,6 +50,17 @@ export function normalizeWordType(w: string | null | undefined): string | null {
 }
 
 /**
+ * Обрезает встроенные формы в скобках из леммы глагола:
+ * "verbieten (verbietet, verbot, hat verboten)" → "verbieten".
+ * Одиночные слова и фразы без скобок не трогает.
+ */
+export function stripInlineForms(front: string | null | undefined): string {
+  const s = (front ?? '').trim();
+  const m = s.match(/^(.+?)\s*\(.+\)\s*$/);
+  return m ? m[1].trim() : s;
+}
+
+/**
  * Нормализует теги: обрезка/схлопывание пробелов, нижний регистр
  * (кроме кодов уровня A1/A2/B1/B2/C1/C2 — они заглавные), удаление дублей.
  */
