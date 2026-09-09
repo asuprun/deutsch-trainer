@@ -14,6 +14,7 @@ import { GenderDrill } from '@/components/gender-drill';
 import { VerbFormsDrill } from '@/components/verb-forms-drill';
 import { VerbRecognitionDrill } from '@/components/verb-recognition-drill';
 import { VerbPatterns } from '@/components/verb-patterns';
+import { VerbPrepDrill } from '@/components/verb-prep-drill';
 import { DeckClozeSession } from '@/components/deck-cloze-session';
 import type { Grade } from 'ts-fsrs';
 import { useI18n } from '@/lib/i18n/context';
@@ -27,11 +28,12 @@ type QueueResponse = {
   due_count_total: number;
 };
 
-type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error' | 'gender' | 'verbforms' | 'verbrecognition' | 'verbpatterns' | 'cloze';
+type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error' | 'gender' | 'verbforms' | 'verbrecognition' | 'verbpatterns' | 'verbpreps' | 'cloze';
 type VerbDir = 'forms' | 'recognition';
+type PrepMode = 'recall' | 'cloze';
 type Mode = 'cards' | 'typing';
 type Direction = 'de-ru' | 'ru-de';
-type Training = 'words' | 'gender' | 'leeches' | 'verbforms';
+type Training = 'words' | 'gender' | 'leeches' | 'verbforms' | 'verbpreps';
 
 export default function ReviewPage() {
   return (
@@ -61,10 +63,12 @@ function ReviewInner() {
   const [training, setTraining] = useState<Training>('words');
   const [verbPattern, setVerbPattern] = useState<string | null>(null);
   const [verbDir, setVerbDir] = useState<VerbDir>('forms');
+  const [prepMode, setPrepMode] = useState<PrepMode>('recall');
   const [limit, setLimit] = useState<number>(sourceId ? 500 : 20);
   const [totalDue, setTotalDue] = useState<number | null>(null);
   const [totalLeeches, setTotalLeeches] = useState<number | null>(null);
   const [totalVerbs, setTotalVerbs] = useState<number | null>(null);
+  const [totalVerbPreps, setTotalVerbPreps] = useState<number | null>(null);
 
   // Fetch due + leech counts in background when lobby is shown
   useEffect(() => {
@@ -94,6 +98,13 @@ function ReviewInner() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data && typeof data.total === 'number') setTotalVerbs(data.total);
+      })
+      .catch(() => {});
+    // Глаголы с предлогом
+    fetch(`/api/review/verb-preps?${base}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data.total === 'number') setTotalVerbPreps(data.total);
       })
       .catch(() => {});
   }, [status, sourceId]);
@@ -215,6 +226,18 @@ function ReviewInner() {
     );
   }
 
+  // ── Verb-mit-Präposition-Drill ───────────────────────────────────────────────
+  if (status === 'verbpreps') {
+    return (
+      <VerbPrepDrill
+        count={limit}
+        sourceId={sourceId}
+        mode={prepMode}
+        onExit={() => setStatus('lobby')}
+      />
+    );
+  }
+
   // ── Verb recognition drill (форма → инфинитив) ───────────────────────────────
   if (status === 'verbrecognition') {
     return (
@@ -282,6 +305,7 @@ function ReviewInner() {
                 ['words', t('review_train_words')],
                 ['gender', t('review_train_gender')],
                 ['verbforms', t('review_train_verbforms')],
+                ['verbpreps', t('review_train_verbpreps')],
                 ['leeches', t('review_train_leeches')],
               ] as const).map(([value, label]) => (
                 <button
@@ -347,6 +371,35 @@ function ReviewInner() {
               </Button>
             </div>
           )}
+          {training === 'verbpreps' && (
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-muted-foreground text-sm">
+                <span className="text-2xl font-bold text-foreground tabular-nums">
+                  {totalVerbPreps ?? '...'}
+                </span>{' '}
+                {t('review_lobby_verbprep_count')}
+              </p>
+              {/* Режим: предлог+падеж / предложение с пропуском */}
+              <div className="flex rounded-md border overflow-hidden">
+                <button
+                  onClick={() => setPrepMode('recall')}
+                  className={`px-3 py-1.5 text-xs transition-colors ${
+                    prepMode === 'recall' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {t('verbprep_recall')}
+                </button>
+                <button
+                  onClick={() => setPrepMode('cloze')}
+                  className={`px-3 py-1.5 text-xs transition-colors border-l ${
+                    prepMode === 'cloze' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {t('verbprep_cloze')}
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-col items-center gap-3">
             <p className="text-lg font-semibold">{t('review_lobby_how_many')}</p>
@@ -366,6 +419,7 @@ function ReviewInner() {
                 const lobbyTotal =
                   training === 'leeches' ? totalLeeches
                   : training === 'verbforms' ? totalVerbs
+                  : training === 'verbpreps' ? totalVerbPreps
                   : totalDue;
                 return (
                   <Button
@@ -418,6 +472,7 @@ function ReviewInner() {
                 setVerbPattern(null);
                 setStatus(verbDir === 'recognition' ? 'verbrecognition' : 'verbforms');
               }
+              else if (training === 'verbpreps') setStatus('verbpreps');
               else loadQueue(limit, training === 'leeches');
             }}
             className="mt-2 min-w-[160px]"

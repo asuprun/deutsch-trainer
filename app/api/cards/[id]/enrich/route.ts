@@ -42,6 +42,8 @@ const responseSchema: ResponseSchema = {
         partizip_2:  { type: SchemaType.STRING, description: 'Partizip II without auxiliary, e.g. "genommen"' },
         hilfsverb:   { type: SchemaType.STRING, description: '"haben" or "sein" (or "haben/sein")' },
         trennbar:    { type: SchemaType.STRING, description: '"true" if separable verb, else "false"' },
+        praeposition: { type: SchemaType.STRING, description: 'Feste Präposition des Verbs, z.B. "auf" bei warten auf. Leer, wenn keine feste Präposition.' },
+        kasus:        { type: SchemaType.STRING, description: 'Kasus der festen Präposition: "Akkusativ", "Dativ" oder "Genitiv". Leer, wenn keine Präposition.' },
       },
     },
     back_corrected: {
@@ -76,7 +78,7 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
 
   const { data: card, error: fetchErr } = await db
     .from('cards')
-    .select('id, front, back, kind, word_type')
+    .select('id, front, back, kind, word_type, forms')
     .eq('id', cardId)
     .maybeSingle();
 
@@ -94,9 +96,10 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
 1. Определи точный word_type: noun/verb/adjective/adverb/preposition/conjunction/numeral/phrase/other
 2. Если существительное — укажи gender (der/die/das) и plural (форму мн.ч.)
 3. Если ГЛАГОЛ — заполни forms: praesens (3-е лицо ед.ч.), praeteritum (3-е лицо), partizip_2 (без hat/ist), hilfsverb (haben/sein), trennbar ("true"/"false"). Для остальных частей речи forms оставь пустым.
-4. Проверь перевод и исправь в back_corrected если нужно (иначе верни как есть)
-5. Добавь теги: уровень CEFR (A1/A2/B1/B2) и 1-2 тематики на русском
-6. Составь 2-3 примера предложений с переводом на A2-B1 уровне`;
+4. Если у глагола есть ФИКСИРОВАННЫЙ предлог (Verb mit Präposition, напр. warten auf, denken an, teilnehmen an) — заполни forms.praeposition (сам предлог, напр. "auf") и forms.kasus ("Akkusativ"/"Dativ"/"Genitiv"). Если фиксированного предлога нет — оставь оба поля пустыми. При наличии предлога хотя бы ОДИН пример должен показывать глагол с этим предлогом.
+5. Проверь перевод и исправь в back_corrected если нужно (иначе верни как есть)
+6. Добавь теги: уровень CEFR (A1/A2/B1/B2) и 1-2 тематики на русском
+7. Составь 2-3 примера предложений с переводом на A2-B1 уровне`;
 
   type EnrichedData = {
     word_type: string;
@@ -108,6 +111,8 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
       partizip_2?: string;
       hilfsverb?: string;
       trennbar?: string;
+      praeposition?: string;
+      kasus?: string;
     } | null;
     back_corrected: string;
     tags: string[];
@@ -162,17 +167,27 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
     updates.plural = enriched.plural || null;
   }
 
-  // Заполняем формы для глаголов — тогда они попадут в дрилл форм
-  if (wordType === 'verb' && enriched.forms?.praeteritum && enriched.forms?.partizip_2) {
+  // Verbformen befüllen (für Formen-Drill und Verb-mit-Präposition-Drill)
+  if (wordType === 'verb' && enriched.forms) {
     const f = enriched.forms;
-    updates.forms = {
+    const prev = (card.forms ?? {}) as Record<string, unknown>;
+    // Kasus normalisieren: erster Buchstabe groß
+    const kasusRaw = (f.kasus || '').trim().toLowerCase();
+    const kasus = kasusRaw ? kasusRaw.charAt(0).toUpperCase() + kasusRaw.slice(1) : undefined;
+    const merged: Record<string, unknown> = {
+      ...prev,
       infinitiv: card.front,
-      praesens: f.praesens || undefined,
-      praeteritum: f.praeteritum,
-      partizip_2: f.partizip_2,
-      hilfsverb: f.hilfsverb || undefined,
-      trennbar: f.trennbar === 'true',
+      praesens: f.praesens || prev.praesens || undefined,
+      praeteritum: f.praeteritum || prev.praeteritum || undefined,
+      partizip_2: f.partizip_2 || prev.partizip_2 || undefined,
+      hilfsverb: f.hilfsverb || prev.hilfsverb || undefined,
+      trennbar: f.trennbar !== undefined ? f.trennbar === 'true' : prev.trennbar,
+      praeposition: (f.praeposition || '').trim().toLowerCase() || undefined,
+      kasus,
     };
+    // leere Felder entfernen
+    for (const k of Object.keys(merged)) if (merged[k] === undefined) delete merged[k];
+    updates.forms = merged;
   }
 
   const { data: updated, error: updateErr } = await db

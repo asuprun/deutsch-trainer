@@ -20,9 +20,10 @@ export const EXTRACT_SYSTEM_PROMPT = `
 - plural: форма множественного числа, если её можно определить
 
 Для глаголов в forms укажи:
-- infinitiv, praeteritum, partizip_2
+- infinitiv, praesens (3-е лицо), praeteritum, partizip_2
 - hilfsverb ("haben" или "sein")
 - trennbar (true/false) — отделяемый ли
+- если у глагола есть фиксированный предлог (warten auf, denken an) — praeposition ("auf") и kasus ("Akkusativ"/"Dativ"/"Genitiv"); иначе оставь пустыми
 
 Для прилагательных в forms укажи komparativ и superlativ, если они нестандартные.
 
@@ -64,13 +65,16 @@ export const extractResponseSchema: ResponseSchema = {
           plural: { type: SchemaType.STRING },
           forms: {
             type: SchemaType.OBJECT,
-            description: 'Свободная форма: для глаголов {infinitiv, praeteritum, partizip_2, hilfsverb, trennbar}; для прилаг. {komparativ, superlativ}',
+            description: 'Свободная форма: для глаголов {infinitiv, praesens, praeteritum, partizip_2, hilfsverb, trennbar, praeposition, kasus}; для прилаг. {komparativ, superlativ}',
             properties: {
               infinitiv: { type: SchemaType.STRING },
+              praesens: { type: SchemaType.STRING },
               praeteritum: { type: SchemaType.STRING },
               partizip_2: { type: SchemaType.STRING },
               hilfsverb: { type: SchemaType.STRING },
               trennbar: { type: SchemaType.BOOLEAN },
+              praeposition: { type: SchemaType.STRING, description: 'Feste Präposition des Verbs (z.B. "auf" bei warten auf). Sonst leer.' },
+              kasus: { type: SchemaType.STRING, description: 'Kasus der Präposition: Akkusativ | Dativ | Genitiv. Sonst leer.' },
               komparativ: { type: SchemaType.STRING },
               superlativ: { type: SchemaType.STRING },
             },
@@ -143,10 +147,13 @@ const wordSchema = z.object({
   forms: z
     .object({
       infinitiv: z.string().optional(),
+      praesens: z.string().optional(),
       praeteritum: z.string().optional(),
       partizip_2: z.string().optional(),
       hilfsverb: z.string().optional(),
       trennbar: z.boolean().optional(),
+      praeposition: z.string().optional(),
+      kasus: z.string().optional(),
       komparativ: z.string().optional(),
       superlativ: z.string().optional(),
     })

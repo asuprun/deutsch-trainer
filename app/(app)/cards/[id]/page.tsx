@@ -52,6 +52,9 @@ export default function CardEditPage({ params }: PageProps) {
   const [mnemonic, setMnemonic] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const [examples, setExamples] = useState<Example[]>([]);
+  // Verb mit Präposition (Rektion)
+  const [praep, setPraep] = useState('');
+  const [kasus, setKasus] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -70,6 +73,9 @@ export default function CardEditPage({ params }: PageProps) {
         setMnemonic(c.mnemonic ?? '');
         setTagsInput((c.tags ?? []).join(', '));
         setExamples(c.examples ?? []);
+        const f = (c.forms ?? {}) as Record<string, unknown>;
+        setPraep((f.praeposition as string) ?? '');
+        setKasus((f.kasus as string) ?? '');
       } catch (e) {
         toast.error(t('card_load_error'), {
           description: e instanceof Error ? e.message : '',
@@ -98,6 +104,14 @@ export default function CardEditPage({ params }: PageProps) {
         .map((tg) => tg.trim())
         .filter(Boolean);
 
+      // Rektion in forms zusammenführen (bestehende Verbformen erhalten)
+      const prevForms = (card.forms ?? {}) as Record<string, unknown>;
+      const forms: Record<string, unknown> = { ...prevForms };
+      if (wordType === 'verb') {
+        if (praep.trim()) forms.praeposition = praep.trim().toLowerCase(); else delete forms.praeposition;
+        if (kasus) forms.kasus = kasus; else delete forms.kasus;
+      }
+
       const body: Record<string, unknown> = {
         front,
         back,
@@ -107,6 +121,7 @@ export default function CardEditPage({ params }: PageProps) {
         mnemonic: mnemonic || null,
         tags,
         examples,
+        forms: Object.keys(forms).length ? forms : null,
       };
 
       const res = await fetch(`/api/cards/${id}`, {
@@ -252,6 +267,30 @@ export default function CardEditPage({ params }: PageProps) {
           <Label htmlFor="plural">{t('card_label_plural')}</Label>
           <Input id="plural" value={plural} onChange={(e) => setPlural(e.target.value)} placeholder="die Häuser" />
         </div>
+
+        {/* Verb mit Präposition — nur bei Verben */}
+        {wordType === 'verb' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-1.5">
+              <Label htmlFor="praep">{t('card_label_praep')}</Label>
+              <Input id="praep" value={praep} onChange={(e) => setPraep(e.target.value)} placeholder="auf" autoCapitalize="off" />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="kasus">{t('card_label_kasus')}</Label>
+              <select
+                id="kasus"
+                value={kasus}
+                onChange={(e) => setKasus(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="">—</option>
+                <option value="Akkusativ">Akkusativ</option>
+                <option value="Dativ">Dativ</option>
+                <option value="Genitiv">Genitiv</option>
+              </select>
+            </div>
+          </div>
+        )}
 
         {/* mnemonic */}
         <div className="grid gap-1.5">
