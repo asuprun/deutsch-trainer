@@ -246,7 +246,7 @@ export default function CardsPage() {
     }
     const n = unenriched.length;
     const estSec = Math.round(n * 4.5);
-    const estMin = estSec >= 60 ? `~${Math.ceil(estSec / 60)} мин` : `~${estSec}с`;
+    const estMin = estSec >= 60 ? `~${Math.ceil(estSec / 60)} ${t('unit_min')}` : `~${estSec}${t('unit_sec')}`;
     toast.info(`${t('cards_enriching')} ${n} (${estMin})`, { duration: estSec * 1000 });
     setEnrichingBatch(true);
     try {
@@ -735,7 +735,7 @@ export default function CardsPage() {
         open={quickAddOpen}
         onClose={() => setQuickAddOpen(false)}
         onSaved={(n) => {
-          toast.success(`Добавлено ${n} карточек`);
+          toast.success(t('cards_added').replace('{n}', String(n)));
           fetchCards();
         }}
       />

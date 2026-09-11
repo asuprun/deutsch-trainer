@@ -280,7 +280,7 @@ function ReviewInner() {
               <X className="size-5" />
             </Link>
           </Button>
-          <span className="flex-1 text-center text-sm font-medium">Тренировка</span>
+          <span className="flex-1 text-center text-sm font-medium">{t('nav_review')}</span>
           <div className="size-9" />
         </header>
 
@@ -288,7 +288,7 @@ function ReviewInner() {
           {sourceId && (
             <div className="flex flex-col items-center gap-3">
               <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
-                из колоды
+                {t('review_from_deck')}
               </span>
               {/* Текст с пропусками — доступен только для колоды */}
               <Button variant="outline" size="sm" onClick={() => setStatus('cloze')}>
@@ -624,8 +624,8 @@ function ReviewInner() {
             <SwipeCard
               onSwipeLeft={flipped ? () => handleRate(1) : undefined}
               onSwipeRight={flipped ? () => handleRate(4) : () => setFlipped(true)}
-              leftLabel={flipped ? '✗ Снова' : undefined}
-              rightLabel={flipped ? '✓ Легко' : '👁 Ответ'}
+              leftLabel={flipped ? `✗ ${t('review_again')}` : undefined}
+              rightLabel={flipped ? `✓ ${t('review_easy')}` : `👁 ${t('review_answer')}`}
               disabled={submitting}
             >
               <ReviewCard card={current} flipped={flipped} reversed={reversed} />
