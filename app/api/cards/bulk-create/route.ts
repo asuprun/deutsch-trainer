@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createEmptyCard } from 'ts-fsrs';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { normalizeGender, normalizeWordType, normalizeTags, stripInlineForms } from '@/lib/utils';
+import { consolidateVerbPrepositions } from '@/lib/verbs/consolidate';
 
 export const runtime = 'nodejs';
 
@@ -67,7 +68,11 @@ export async function POST(req: Request) {
   const emptyCard = createEmptyCard();
   const fsrsBase = JSON.parse(JSON.stringify(emptyCard));
 
-  const cardRows = cards.map((c) => {
+  // «warten» + «warten auf» -> EINE Verbkarte mit forms.praeposition (deterministisch,
+  // unabhängig davon ob das Modell die Prompt-Anweisung befolgt hat).
+  const mergedCards = consolidateVerbPrepositions(cards);
+
+  const cardRows = mergedCards.map((c) => {
     const wt = normalizeWordType(c.word_type);
     return {
     source_id,
