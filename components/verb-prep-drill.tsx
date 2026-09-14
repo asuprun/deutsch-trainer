@@ -11,9 +11,10 @@ import { compareAnswer } from '@/lib/utils/compare';
 import { cn } from '@/lib/utils';
 import type { Grade } from 'ts-fsrs';
 
-type Forms = { praeposition?: string; kasus?: string };
+type Rektion = { prep: string; kasus: string };
 type Example = { de: string; ru: string };
-type Card = { id: string; front: string; back: string; forms: Forms; examples: Example[] | null };
+// Ein Verb kann MEHRERE Rektionen haben (erzählen von+Dativ / über+Akkusativ).
+type Verb = { ids: string[]; front: string; back: string; examples: Example[]; rektionen: Rektion[] };
 type Status = 'loading' | 'empty' | 'active' | 'done' | 'error';
 type Mode = 'recall' | 'cloze';
 
@@ -35,13 +36,24 @@ function makeCloze(sentence: string, prep: string): { text: string; answer: stri
   return { text: sentence.slice(0, idx) + '___' + sentence.slice(idx + m[2].length), answer };
 }
 
+// Erstes (Beispiel × Rektion)-Paar, das einen Lückentext ergibt
+function firstCloze(v: Verb): { text: string; answer: string; ru: string } | null {
+  for (const e of v.examples ?? []) {
+    for (const r of v.rektionen) {
+      const c = makeCloze(e.de, r.prep);
+      if (c) return { ...c, ru: e.ru };
+    }
+  }
+  return null;
+}
+
 type Props = { count: number; sourceId: string | null; mode: Mode; onExit: () => void };
 
 export function VerbPrepDrill({ count, sourceId, mode, onExit }: Props) {
   const { t } = useI18n();
   const { speak } = useTTSContext();
   const [status, setStatus] = useState<Status>('loading');
-  const [cards, setCards] = useState<Card[]>([]);
+  const [verbs, setVerbs] = useState<Verb[]>([]);
   const [idx, setIdx] = useState(0);
   const [prep, setPrep] = useState('');
   const [kasus, setKasus] = useState<string | null>(null);
@@ -59,13 +71,11 @@ export function VerbPrepDrill({ count, sourceId, mode, onExit }: Props) {
       const res = await fetch(`/api/review/verb-preps?${qs}`);
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d?.error?.message ?? `HTTP ${res.status}`); }
       const data = await res.json();
-      let list: Card[] = data.cards ?? [];
-      // Im Cloze-Modus nur Karten mit brauchbarem Beispielsatz
-      if (mode === 'cloze') {
-        list = list.filter((c) => (c.examples ?? []).some((e) => c.forms?.praeposition && makeCloze(e.de, c.forms.praeposition)));
-      }
+      let list: Verb[] = data.verbs ?? [];
+      // Im Cloze-Modus nur Verben mit brauchbarem Beispielsatz
+      if (mode === 'cloze') list = list.filter((v) => firstCloze(v));
       if (!list.length) { setStatus('empty'); return; }
-      setCards(list);
+      setVerbs(list);
       setIdx(0); setPrep(''); setKasus(null); setClozeInput(''); setChecked(false); setScore(0);
       setStatus('active');
       setTimeout(() => inputRef.current?.focus(), 80);
@@ -77,20 +87,19 @@ export function VerbPrepDrill({ count, sourceId, mode, onExit }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
-  const current = status === 'active' ? cards[idx] : null;
+  const current = status === 'active' ? verbs[idx] : null;
 
-  // Cloze-Satz für die aktuelle Karte
-  const cloze = useMemo(() => {
-    if (mode !== 'cloze' || !current?.forms?.praeposition) return null;
-    for (const e of current.examples ?? []) {
-      const c = makeCloze(e.de, current.forms.praeposition);
-      if (c) return { ...c, ru: e.ru };
-    }
-    return null;
-  }, [mode, current]);
+  const cloze = useMemo(() => (mode === 'cloze' && current ? firstCloze(current) : null), [mode, current]);
 
-  const prepOk = current ? isOk(mode === 'cloze' ? clozeInput : prep, current.forms.praeposition ?? '') : false;
-  const kasusOk = current ? kasus === current.forms.kasus : false;
+  // Recall: passende Rektion (Präposition richtig) bzw. voll richtig (Präp + Kasus)
+  const prepMatch = current && mode === 'recall' ? current.rektionen.find((r) => isOk(prep, r.prep)) : undefined;
+  const fullMatch = current && mode === 'recall' ? current.rektionen.find((r) => isOk(prep, r.prep) && kasus === r.kasus) : undefined;
+  const prepOk = mode === 'cloze' ? isOk(clozeInput, cloze?.answer ?? '') : !!prepMatch;
+  const allOk = mode === 'cloze' ? prepOk : !!fullMatch;
+  // Welche Kasus sind für die aktuelle Eingabe korrekt (zum Einfärben der Buttons)?
+  const correctKasus = current && mode === 'recall'
+    ? new Set((prepMatch ? [prepMatch] : current.rektionen).map((r) => r.kasus))
+    : new Set<string>();
 
   const check = useCallback(async () => {
     if (!current || checked) return;
@@ -98,29 +107,35 @@ export function VerbPrepDrill({ count, sourceId, mode, onExit }: Props) {
     if (mode === 'cloze' && !clozeInput.trim()) return;
     setChecked(true);
 
-    const pOk = isOk(mode === 'cloze' ? clozeInput : prep, current.forms.praeposition ?? '');
-    const kOk = mode === 'recall' ? kasus === current.forms.kasus : true;
-    const allOk = pOk && kOk;
-    if (allOk) setScore((s) => s + 1);
+    const pOk = mode === 'cloze'
+      ? isOk(clozeInput, cloze?.answer ?? '')
+      : current.rektionen.some((r) => isOk(prep, r.prep));
+    const full = mode === 'cloze'
+      ? pOk
+      : current.rektionen.some((r) => isOk(prep, r.prep) && kasus === r.kasus);
+    if (full) setScore((s) => s + 1);
 
-    // Vorlesen: Verb mit Präposition
-    speak(`${current.front} ${current.forms.praeposition}`);
+    // Vorlesen: Verb mit (getroffener) Präposition
+    const spokenPrep = (mode === 'recall' ? prepMatch?.prep : cloze?.answer) ?? current.rektionen[0]?.prep ?? '';
+    speak(`${current.front} ${spokenPrep}`);
 
-    const okCount = (pOk ? 1 : 0) + (mode === 'recall' && kOk ? 1 : 0);
-    const rating = (allOk ? 3 : okCount >= 1 ? 2 : 1) as Grade;
+    const okCount = (pOk ? 1 : 0) + (mode === 'recall' && full ? 1 : 0);
+    const rating = (full ? 3 : okCount >= 1 ? 2 : 1) as Grade;
     try {
-      await fetch('/api/review/answer', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ card_id: current.id, rating }),
-      });
+      // alle Geschwisterkarten des Verbs gleich bewerten
+      await Promise.all(current.ids.map((id) =>
+        fetch('/api/review/answer', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ card_id: id, rating }),
+        })));
     } catch { toast.error(t('review_save_error')); }
-  }, [current, checked, mode, prep, kasus, clozeInput, speak, t]);
+  }, [current, checked, mode, prep, kasus, clozeInput, prepMatch, cloze, speak, t]);
 
   const next = useCallback(() => {
     setChecked(false); setPrep(''); setKasus(null); setClozeInput('');
-    if (idx + 1 >= cards.length) setStatus('done');
+    if (idx + 1 >= verbs.length) setStatus('done');
     else { setIdx((i) => i + 1); setTimeout(() => inputRef.current?.focus(), 80); }
-  }, [idx, cards.length]);
+  }, [idx, verbs.length]);
 
   useEffect(() => {
     if (!checked) return;
@@ -152,12 +167,12 @@ export function VerbPrepDrill({ count, sourceId, mode, onExit }: Props) {
       </div>
     );
   if (status === 'done') {
-    const pct = Math.round((score / cards.length) * 100);
+    const pct = Math.round((score / verbs.length) * 100);
     return (
       <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-6 bg-background p-6 text-center">
         <div className="text-5xl">{pct >= 80 ? '🎉' : pct >= 50 ? '💪' : '📚'}</div>
         <div>
-          <p className="text-3xl font-bold tabular-nums">{score} / {cards.length}</p>
+          <p className="text-3xl font-bold tabular-nums">{score} / {verbs.length}</p>
           <p className="text-muted-foreground mt-1">{t('gramex_correct_answers')}</p>
         </div>
         <div className="flex gap-3">
@@ -170,12 +185,13 @@ export function VerbPrepDrill({ count, sourceId, mode, onExit }: Props) {
 
   if (!current) return null;
   const onKey = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !checked) { e.preventDefault(); check(); } };
+  const rektionenLabel = current.rektionen.map((r) => `${r.prep} + ${r.kasus}`).join(' · ');
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-background">
       <header className="shrink-0 flex items-center gap-2 border-b px-4 py-3 sm:px-6">
         <Button variant="ghost" size="icon" onClick={onExit} aria-label={t('review_close_label')}><X className="size-5" /></Button>
-        <span className="flex-1 text-center text-sm tabular-nums text-muted-foreground">{idx + 1} / {cards.length}</span>
+        <span className="flex-1 text-center text-sm tabular-nums text-muted-foreground">{idx + 1} / {verbs.length}</span>
         <span className="text-sm tabular-nums text-muted-foreground">✓ {score}</span>
       </header>
 
@@ -189,6 +205,9 @@ export function VerbPrepDrill({ count, sourceId, mode, onExit }: Props) {
                   <Button variant="ghost" size="icon" onClick={() => speak(current.front)}><Volume2 className="size-4" /></Button>
                 </div>
                 <p className="text-muted-foreground mt-1">{current.back}</p>
+                {current.rektionen.length > 1 && !checked && (
+                  <p className="text-xs text-muted-foreground/70 mt-1">{t('verbprep_multi_hint')}</p>
+                )}
               </div>
 
               <div className="w-full max-w-sm flex flex-col gap-3">
@@ -200,15 +219,14 @@ export function VerbPrepDrill({ count, sourceId, mode, onExit }: Props) {
                     autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
                     className={cn('h-11 text-base', checked && (prepOk ? 'border-emerald-500/60' : 'border-rose-500/60'))}
                   />
-                  {checked && !prepOk && <span className="text-sm text-emerald-600 dark:text-emerald-400">{current.forms.praeposition}</span>}
                 </div>
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-muted-foreground">Kasus</label>
                   <div className="flex gap-2">
                     {KASUS.map((k) => {
-                      const isCorrect = checked && current.forms.kasus === k;
-                      const isWrong = checked && kasus === k && current.forms.kasus !== k;
+                      const isCorrect = checked && correctKasus.has(k);
+                      const isWrong = checked && kasus === k && !correctKasus.has(k);
                       return (
                         <button key={k} onClick={() => !checked && setKasus(k)} disabled={checked}
                           className={cn('flex-1 rounded-md border py-2 text-sm font-medium transition-colors',
@@ -222,6 +240,11 @@ export function VerbPrepDrill({ count, sourceId, mode, onExit }: Props) {
                     })}
                   </div>
                 </div>
+
+                {/* Nach der Prüfung: alle gültigen Rektionen zeigen */}
+                {checked && (
+                  <p className="text-sm text-center text-emerald-600 dark:text-emerald-400">{rektionenLabel}</p>
+                )}
               </div>
             </>
           ) : (
@@ -251,7 +274,7 @@ export function VerbPrepDrill({ count, sourceId, mode, onExit }: Props) {
           <div className="w-full max-w-sm flex flex-col gap-3">
             {checked ? (
               <Button size="lg" onClick={next} className="w-full">
-                {idx + 1 < cards.length ? t('gramex_next') : t('gramex_finish')}<ArrowRight className="ml-2 size-4" />
+                {idx + 1 < verbs.length ? t('gramex_next') : t('gramex_finish')}<ArrowRight className="ml-2 size-4" />
               </Button>
             ) : (
               <Button size="lg" onClick={check}
@@ -266,8 +289,8 @@ export function VerbPrepDrill({ count, sourceId, mode, onExit }: Props) {
 
             {checked && (
               <div className={cn('flex items-center justify-center gap-2 text-sm font-medium',
-                (prepOk && (mode === 'cloze' || kasusOk)) ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400')}>
-                {(prepOk && (mode === 'cloze' || kasusOk))
+                allOk ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400')}>
+                {allOk
                   ? <><Check className="size-4" /> {t('gramex_correct')}</>
                   : <><XCircle className="size-4" /> {t('gramex_wrong')}</>}
               </div>
