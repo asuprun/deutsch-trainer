@@ -173,7 +173,14 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
     const prev = (card.forms ?? {}) as Record<string, unknown>;
     // Kasus normalisieren: erster Buchstabe groß
     const kasusRaw = (f.kasus || '').trim().toLowerCase();
-    const kasus = kasusRaw ? kasusRaw.charAt(0).toUpperCase() + kasusRaw.slice(1) : undefined;
+    const gemKasus = kasusRaw ? kasusRaw.charAt(0).toUpperCase() + kasusRaw.slice(1) : undefined;
+    // Nur die ERSTE Präposition übernehmen — kein «aus/über/von» (eine Karte = ein Kasus).
+    const gemPrep = (f.praeposition || '').trim().toLowerCase().split(/[\/,;]| oder | und /i)[0].trim();
+    // Bereits kuratierte Präposition NICHT überschreiben/löschen: sonst wischt ein
+    // Enrich ohne erkannte Präposition den Drill-Eintrag weg (Datenverlust). Kasus folgt der Präposition.
+    const prevPrep = typeof prev.praeposition === 'string' ? prev.praeposition.trim() : '';
+    const praeposition = prevPrep || gemPrep || undefined;
+    const kasus = prevPrep ? (prev.kasus as string | undefined) : gemKasus;
     const merged: Record<string, unknown> = {
       ...prev,
       infinitiv: card.front,
@@ -182,7 +189,7 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
       partizip_2: f.partizip_2 || prev.partizip_2 || undefined,
       hilfsverb: f.hilfsverb || prev.hilfsverb || undefined,
       trennbar: f.trennbar !== undefined ? f.trennbar === 'true' : prev.trennbar,
-      praeposition: (f.praeposition || '').trim().toLowerCase() || undefined,
+      praeposition,
       kasus,
     };
     // leere Felder entfernen
