@@ -26,6 +26,19 @@ const PREP_KASUS: Record<string, 'Akkusativ' | 'Dativ'> = {
 };
 const PREPS = new Set(Object.keys(PREP_KASUS));
 
+// Verb+Präposition-Kombis, die entgegen der Wechselpräp-Heuristik DATIV verlangen.
+// Schlüssel: «lemma prep» (lemma ohne "sich"). Alles andere folgt PREP_KASUS.
+const DATIV_RECTION = new Set([
+  'teilnehmen an', 'leiden an', 'arbeiten an', 'zweifeln an', 'erkranken an', 'beteiligen an',
+  'befinden in', 'bestehen in',
+  'warnen vor', 'fliehen vor', 'schützen vor', 'fürchten vor', 'sich fürchten vor',
+]);
+
+function kasusFor(lemma: string, prep: string): 'Akkusativ' | 'Dativ' {
+  if (DATIV_RECTION.has(`${lemma} ${prep}`)) return 'Dativ';
+  return PREP_KASUS[prep] ?? 'Akkusativ';
+}
+
 /** Minimales Kartenformat, das diese Funktion berührt. */
 export interface Consolidatable {
   kind: string;
@@ -50,14 +63,15 @@ function splitCombo(front: string): { verb: string; prep: string; reflexive: boo
   return { verb: verbPart, prep, reflexive };
 }
 
-function applyPrep<T extends Consolidatable>(card: T, prep: string, reflexive: boolean): void {
+function applyPrep<T extends Consolidatable>(card: T, lemma: string, prep: string, reflexive: boolean): void {
   if (reflexive && !/^sich\s+/i.test(card.front)) card.front = `sich ${card.front.trim()}`;
   const forms: Record<string, unknown> = { ...(card.forms ?? {}) };
   forms.praeposition = prep;
-  forms.kasus = PREP_KASUS[prep] ?? 'Akkusativ';
+  forms.kasus = kasusFor(lemma, prep);
   if (forms.infinitiv) forms.infinitiv = card.front;
   card.forms = forms;
   card.word_type = 'verb';
+  card.kind = 'vocab';
 }
 
 export function consolidateVerbPrepositions<T extends Consolidatable>(cards: T[]): T[] {
@@ -74,7 +88,8 @@ export function consolidateVerbPrepositions<T extends Consolidatable>(cards: T[]
   const combos = new Map<string, { prep: string; reflexive: boolean; card: T }[]>();
   const drop = new Set<T>();
   for (const c of cards) {
-    if (c.kind !== 'vocab') continue;
+    // Kombis können als Vokabel ODER als Phrase («warten auf») ankommen
+    if (c.kind !== 'vocab' && c.kind !== 'phrase') continue;
     const parsed = splitCombo(c.front);
     if (!parsed) continue;
     const lemma = parsed.verb.replace(/^sich\s+/i, '').toLowerCase();
@@ -97,12 +112,12 @@ export function consolidateVerbPrepositions<T extends Consolidatable>(cards: T[]
       // "PRÄP" aus dem front entfernen
       base.front = uniq[0].reflexive ? `sich ${lemma}` : lemma;
     }
-    applyPrep(base, uniq[0].prep, uniq[0].reflexive);
+    applyPrep(base, lemma, uniq[0].prep, uniq[0].reflexive);
 
     // weitere Präpositionen -> geklonte Verbkarten
     for (const co of uniq.slice(1)) {
       const clone = { ...base, forms: { ...(base.forms ?? {}) } } as T;
-      applyPrep(clone, co.prep, co.reflexive);
+      applyPrep(clone, lemma, co.prep, co.reflexive);
       add.push(clone);
     }
   }
