@@ -64,11 +64,13 @@ function ReviewInner() {
   const [verbPattern, setVerbPattern] = useState<string | null>(null);
   const [verbDir, setVerbDir] = useState<VerbDir>('forms');
   const [prepMode, setPrepMode] = useState<PrepMode>('recall');
+  const [prepHard, setPrepHard] = useState(false);
   const [limit, setLimit] = useState<number>(sourceId ? 500 : 20);
   const [totalDue, setTotalDue] = useState<number | null>(null);
   const [totalLeeches, setTotalLeeches] = useState<number | null>(null);
   const [totalVerbs, setTotalVerbs] = useState<number | null>(null);
   const [totalVerbPreps, setTotalVerbPreps] = useState<number | null>(null);
+  const [totalVerbPrepsHard, setTotalVerbPrepsHard] = useState<number | null>(null);
 
   // Fetch due + leech counts in background when lobby is shown
   useEffect(() => {
@@ -105,6 +107,7 @@ function ReviewInner() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data && typeof data.total === 'number') setTotalVerbPreps(data.total);
+        if (data && typeof data.hardTotal === 'number') setTotalVerbPrepsHard(data.hardTotal);
       })
       .catch(() => {});
   }, [status, sourceId]);
@@ -233,6 +236,7 @@ function ReviewInner() {
         count={limit}
         sourceId={sourceId}
         mode={prepMode}
+        hardOnly={prepHard}
         onExit={() => setStatus('lobby')}
       />
     );
@@ -375,9 +379,9 @@ function ReviewInner() {
             <div className="flex flex-col items-center gap-3">
               <p className="text-muted-foreground text-sm">
                 <span className="text-2xl font-bold text-foreground tabular-nums">
-                  {totalVerbPreps ?? '...'}
+                  {(prepHard ? totalVerbPrepsHard : totalVerbPreps) ?? '...'}
                 </span>{' '}
-                {t('review_lobby_verbprep_count')}
+                {prepHard ? t('verbprep_hard_count') : t('review_lobby_verbprep_count')}
               </p>
               {/* Режим: предлог+падеж / предложение с пропуском */}
               <div className="flex rounded-md border overflow-hidden">
@@ -398,6 +402,16 @@ function ReviewInner() {
                   {t('verbprep_cloze')}
                 </button>
               </div>
+              {/* Nur Verben, bei denen man sich oft irrt */}
+              <button
+                onClick={() => setPrepHard((v) => !v)}
+                disabled={!totalVerbPrepsHard}
+                className={`px-3 py-1.5 text-xs rounded-md border transition-colors disabled:opacity-40 ${
+                  prepHard ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {t('verbprep_hard_toggle')}
+              </button>
             </div>
           )}
 
@@ -419,7 +433,7 @@ function ReviewInner() {
                 const lobbyTotal =
                   training === 'leeches' ? totalLeeches
                   : training === 'verbforms' ? totalVerbs
-                  : training === 'verbpreps' ? totalVerbPreps
+                  : training === 'verbpreps' ? (prepHard ? totalVerbPrepsHard : totalVerbPreps)
                   : totalDue;
                 return (
                   <Button

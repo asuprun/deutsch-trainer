@@ -47,9 +47,9 @@ function firstCloze(v: Verb): { text: string; answer: string; ru: string } | nul
   return null;
 }
 
-type Props = { count: number; sourceId: string | null; mode: Mode; onExit: () => void };
+type Props = { count: number; sourceId: string | null; mode: Mode; hardOnly?: boolean; onExit: () => void };
 
-export function VerbPrepDrill({ count, sourceId, mode, onExit }: Props) {
+export function VerbPrepDrill({ count, sourceId, mode, hardOnly = false, onExit }: Props) {
   const { t } = useI18n();
   const { speak } = useTTSContext();
   const [status, setStatus] = useState<Status>('loading');
@@ -68,6 +68,7 @@ export function VerbPrepDrill({ count, sourceId, mode, onExit }: Props) {
     try {
       const qs = new URLSearchParams({ limit: String(count) });
       if (sourceId) qs.set('source_id', sourceId);
+      if (hardOnly) qs.set('hard', '1');
       const res = await fetch(`/api/review/verb-preps?${qs}`);
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d?.error?.message ?? `HTTP ${res.status}`); }
       const data = await res.json();
@@ -83,7 +84,7 @@ export function VerbPrepDrill({ count, sourceId, mode, onExit }: Props) {
       setError(e instanceof Error ? e.message : String(e));
       setStatus('error');
     }
-  }, [count, sourceId, mode]);
+  }, [count, sourceId, mode, hardOnly]);
 
   useEffect(() => { load(); }, [load]);
 

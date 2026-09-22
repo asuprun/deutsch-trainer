@@ -1,20 +1,29 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
+import type { CardJson } from '@/lib/fsrs/scheduler';
 
 export const runtime = 'nodejs';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 500;
 
+// «Trudnoe» — wie im allgemeinen Leech-Filter: hohe FSRS-Schwierigkeit ODER ein Fehler.
+const HARD_MIN_DIFFICULTY = 7; // FSRS-Skala 1..10
+const HARD_MIN_LAPSES = 1;
+
 type Rektion = { prep: string; kasus: string };
 type Example = { de: string; ru: string };
-type VerbGroup = { ids: string[]; front: string; back: string; examples: Example[]; rektionen: Rektion[] };
+type VerbGroup = {
+  ids: string[]; front: string; back: string; examples: Example[]; rektionen: Rektion[];
+  hard: boolean; hardness: number;
+};
 
 /**
  * Verben mit fester Präposition (forms.praeposition gesetzt) für den Rektions-Drill.
  * Karten werden PRO VERB (front) gruppiert: ein Verb kann mehrere Rektionen haben
  * (z.B. erzählen von+Dativ / über+Akkusativ). Der Drill akzeptiert dann jede gültige
  * Rektion, statt eine bestimmte zu erzwingen. `limit` zählt Verben, nicht Karten.
+ * `hard=1` — nur Verben, bei denen man sich oft irrt (nach Schwierigkeit sortiert).
  */
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -23,12 +32,13 @@ export async function GET(req: Request) {
     ? Math.min(Math.max(1, limitRaw), MAX_LIMIT)
     : DEFAULT_LIMIT;
   const sourceId = url.searchParams.get('source_id');
+  const hardOnly = url.searchParams.get('hard') === '1';
 
   const sb = getSupabaseAdmin();
 
   let query = sb
     .from('cards')
-    .select('id, front, back, forms, examples')
+    .select('id, front, back, forms, examples, fsrs_state, reps, lapses')
     .eq('word_type', 'verb')
     .not('forms->>praeposition', 'is', null)
     .neq('forms->>praeposition', '')
@@ -54,7 +64,7 @@ export async function GET(req: Request) {
     const forms = (c.forms ?? {}) as { praeposition?: string; kasus?: string };
     let g = map.get(key);
     if (!g) {
-      g = { ids: [], front: c.front, back: c.back, examples: [], rektionen: [] };
+      g = { ids: [], front: c.front, back: c.back, examples: [], rektionen: [], hard: false, hardness: 0 };
       map.set(key, g);
     }
     g.ids.push(c.id);
@@ -68,8 +78,16 @@ export async function GET(req: Request) {
     for (const e of (c.examples ?? []) as Example[]) {
       if (e?.de && !g.examples.some((x) => x.de === e.de)) g.examples.push(e);
     }
+    // Schwierigkeit: nur bereits geübte Karten (reps>0) zählen als «trudno»
+    const difficulty = (c.fsrs_state as CardJson | null)?.difficulty ?? 0;
+    const lapses = c.lapses ?? 0;
+    if ((c.reps ?? 0) > 0 && (difficulty >= HARD_MIN_DIFFICULTY || lapses >= HARD_MIN_LAPSES)) g.hard = true;
+    g.hardness = Math.max(g.hardness, difficulty + lapses * 2);
   }
 
-  const verbs = [...map.values()].slice(0, limit);
-  return NextResponse.json({ verbs, total: map.size });
+  const groups = [...map.values()];
+  const hardGroups = groups.filter((g) => g.hard).sort((a, b) => b.hardness - a.hardness);
+
+  const verbs = (hardOnly ? hardGroups : groups).slice(0, limit);
+  return NextResponse.json({ verbs, total: map.size, hardTotal: hardGroups.length });
 }
