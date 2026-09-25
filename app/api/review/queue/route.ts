@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
+import { fetchAll } from '@/lib/supabase/fetch-all';
 import { previewIntervals, type CardJson } from '@/lib/fsrs/scheduler';
 
 export const runtime = 'nodejs';
@@ -27,27 +28,27 @@ export async function GET(req: Request) {
   const sb = getSupabaseAdmin();
   const nowIso = new Date().toISOString();
 
-  let query = sb
-    .from('cards')
-    .select('id, kind, front, back, word_type, gender, plural, forms, examples, mnemonic, tags, fsrs_state, due_at, reps, lapses', { count: 'exact' })
-    .neq('kind', 'grammar_rule');   // грамматика тренируется в разделе «Грамматика»
+  // Basisabfrage mit gemeinsamen Filtern (Grammatik wird im Bereich «Grammatik» geübt)
+  const base = () => {
+    let q = sb
+      .from('cards')
+      .select('id, kind, front, back, word_type, gender, plural, forms, examples, mnemonic, tags, fsrs_state, due_at, reps, lapses', { count: 'exact' })
+      .neq('kind', 'grammar_rule');
+    if (tag) q = q.contains('tags', [tag]);
+    if (sourceId) q = q.eq('source_id', sourceId);
+    return q;
+  };
 
-  if (leeches) {
-    // Трудные: фильтр по difficulty/lapses делаем в JS (jsonb численно не отфильтровать),
-    // поэтому тянем всё и обрабатываем ниже. Только реально повторённые карты.
-    query = query.gt('reps', 0);
-  } else if (all) {
-    // Вся колода: без фильтра по расписанию (сначала созревшие)
-    query = query.order('due_at', { ascending: true }).limit(limit);
-  } else {
-    // Обычная очередь: только созревшие по расписанию
-    query = query.lte('due_at', nowIso).order('due_at', { ascending: true }).limit(limit);
-  }
-
-  if (tag) query = query.contains('tags', [tag]);
-  if (sourceId) query = query.eq('source_id', sourceId);
-
-  const { data, error, count } = await query;
+  const { data, error, count } = leeches
+    // Schwierige: Filter nach difficulty/lapses läuft in JS (jsonb nicht numerisch filterbar),
+    // daher ALLE geübten Karten laden — seitenweise, da es über 1000 werden können.
+    ? await fetchAll((from, to) => base().gt('reps', 0).order('id').range(from, to))
+        .then((r) => ({ ...r, count: r.data.length }))
+    : all
+      // ganzes Deck: ohne Fälligkeitsfilter (fällige zuerst)
+      ? await base().order('due_at', { ascending: true }).limit(limit)
+      // normale Warteschlange: nur fällige Karten
+      : await base().lte('due_at', nowIso).order('due_at', { ascending: true }).limit(limit);
 
   if (error) {
     return NextResponse.json(

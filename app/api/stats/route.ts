@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
+import { fetchAll } from '@/lib/supabase/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,33 +25,41 @@ export async function GET() {
       db.from('cards').select('id', { count: 'exact', head: true }),
 
       // Даты ревью для расчёта streak (последние 365 дней)
-      db
+      fetchAll((from, to) => db
         .from('review_logs')
         .select('reviewed_at')
         .gte('reviewed_at', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString())
-        .order('reviewed_at', { ascending: false }),
+        .order('reviewed_at', { ascending: false })
+        .order('id')
+        .range(from, to)),
 
       // Ревью за последние 112 дней для heatmap + reviewed_today
-      db
+      fetchAll((from, to) => db
         .from('review_logs')
         .select('reviewed_at')
-        .gte('reviewed_at', days112Ago),
+        .gte('reviewed_at', days112Ago)
+        .order('id')
+        .range(from, to)),
 
       // fsrs_state и kind для всех карт
-      db.from('cards').select('fsrs_state, kind'),
+      fetchAll((from, to) => db.from('cards').select('fsrs_state, kind').order('id').range(from, to)),
 
       // Рейтинги за 30 дней для retention rate
-      db
+      fetchAll((from, to) => db
         .from('review_logs')
         .select('rating')
-        .gte('reviewed_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
+        .gte('reviewed_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+        .order('id')
+        .range(from, to)),
 
       // Карты по due_at для прогноза на 7 дней
-      db
+      fetchAll((from, to) => db
         .from('cards')
         .select('due_at')
         .gt('due_at', now.toISOString())
-        .lte('due_at', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()),
+        .lte('due_at', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())
+        .order('id')
+        .range(from, to)),
     ]);
 
     // Streak

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
+import { fetchAll } from '@/lib/supabase/fetch-all';
 
 export const runtime = 'nodejs';
 
@@ -12,7 +13,7 @@ export async function GET() {
 
   const [sourcesRes, cardsRes, grammarRes] = await Promise.all([
     db.from('sources').select('*').order('created_at', { ascending: false }),
-    db.from('cards').select('source_id'),
+    fetchAll((from, to) => db.from('cards').select('source_id').order('id').range(from, to)),
     db.from('grammar_notes').select('source_id'),
   ]);
 

@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from '@/lib/supabase/server';
+import { fetchAll } from '@/lib/supabase/fetch-all';
 import { DecksClient } from './decks-client';
 
 // Всегда рендерим на запросе — иначе список колод кэшируется на этапе билда
@@ -21,7 +22,7 @@ async function loadSources() {
     const [sourcesRes, cardsRes, grammarRes] = await Promise.all([
       db.from('sources').select('*').order('created_at', { ascending: false }),
       // reps + fsrs_state нужны для прогресса освоения; grammar_rule не считаем
-      db.from('cards').select('source_id, reps, fsrs_state').neq('kind', 'grammar_rule'),
+      fetchAll((from, to) => db.from('cards').select('source_id, reps, fsrs_state').neq('kind', 'grammar_rule').order('id').range(from, to)),
       db.from('grammar_notes').select('source_id'),
     ]);
 

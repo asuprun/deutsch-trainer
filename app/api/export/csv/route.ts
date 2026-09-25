@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from '@/lib/supabase/server';
+import { fetchAll } from '@/lib/supabase/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,10 +17,12 @@ export async function GET() {
   try {
     const db = getSupabaseAdmin();
 
-    const { data, error } = await db
+    const { data, error } = await fetchAll((from, to) => db
       .from('cards')
       .select('id, kind, front, back, gender, plural, word_type, tags, reps, lapses, due_at, created_at')
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .order('id')
+      .range(from, to));
 
     if (error) {
       return new Response(

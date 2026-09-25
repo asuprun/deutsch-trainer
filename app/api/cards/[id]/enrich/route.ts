@@ -163,7 +163,8 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
   const wordType = normalizeWordType(enriched.word_type) ?? card.word_type;
   const updates: Record<string, unknown> = {
     word_type: wordType,
-    back: enriched.back_corrected || card.back,
+    // Korrektur nur übernehmen, wenn sie wirklich russisch ist (Modell gibt teils das deutsche Wort zurück)
+    back: enriched.back_corrected && /[а-яё]/i.test(enriched.back_corrected) ? enriched.back_corrected : card.back,
     tags: normalizeTags(enriched.tags),
     examples: enriched.examples ?? [],
   };
