@@ -71,6 +71,8 @@ function ReviewInner() {
   const [totalVerbs, setTotalVerbs] = useState<number | null>(null);
   const [totalVerbPreps, setTotalVerbPreps] = useState<number | null>(null);
   const [totalVerbPrepsHard, setTotalVerbPrepsHard] = useState<number | null>(null);
+  const [totalVerbPrepsCloze, setTotalVerbPrepsCloze] = useState<number | null>(null);
+  const [totalVerbPrepsClozeHard, setTotalVerbPrepsClozeHard] = useState<number | null>(null);
 
   // Fetch due + leech counts in background when lobby is shown
   useEffect(() => {
@@ -108,6 +110,8 @@ function ReviewInner() {
       .then((data) => {
         if (data && typeof data.total === 'number') setTotalVerbPreps(data.total);
         if (data && typeof data.hardTotal === 'number') setTotalVerbPrepsHard(data.hardTotal);
+        if (data && typeof data.clozeTotal === 'number') setTotalVerbPrepsCloze(data.clozeTotal);
+        if (data && typeof data.clozeHardTotal === 'number') setTotalVerbPrepsClozeHard(data.clozeHardTotal);
       })
       .catch(() => {});
   }, [status, sourceId]);
@@ -276,6 +280,13 @@ function ReviewInner() {
   // ── Lobby ────────────────────────────────────────────────────────────────────
   if (status === 'lobby') {
     const LIMIT_OPTIONS = [10, 20, 30, 50];
+    // Satz-Modus zählt nur Verben mit brauchbarem Beispielsatz
+    const prepCount = prepMode === 'cloze'
+      ? (prepHard ? totalVerbPrepsClozeHard : totalVerbPrepsCloze)
+      : (prepHard ? totalVerbPrepsHard : totalVerbPreps);
+    const prepHardAvailable = prepMode === 'cloze' ? totalVerbPrepsClozeHard : totalVerbPrepsHard;
+    const prepNoExample = totalVerbPreps != null && totalVerbPrepsCloze != null
+      ? totalVerbPreps - totalVerbPrepsCloze : 0;
     return (
       <div className="fixed inset-0 z-[60] flex flex-col bg-background">
         <header className="shrink-0 flex items-center gap-2 border-b px-4 py-3 sm:px-6">
@@ -379,7 +390,7 @@ function ReviewInner() {
             <div className="flex flex-col items-center gap-3">
               <p className="text-muted-foreground text-sm">
                 <span className="text-2xl font-bold text-foreground tabular-nums">
-                  {(prepHard ? totalVerbPrepsHard : totalVerbPreps) ?? '...'}
+                  {prepCount ?? '...'}
                 </span>{' '}
                 {prepHard ? t('verbprep_hard_count') : t('review_lobby_verbprep_count')}
               </p>
@@ -402,10 +413,15 @@ function ReviewInner() {
                   {t('verbprep_cloze')}
                 </button>
               </div>
+              {prepMode === 'cloze' && prepNoExample > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {prepNoExample} {t('verbprep_no_example')}
+                </p>
+              )}
               {/* Nur Verben, bei denen man sich oft irrt */}
               <button
                 onClick={() => setPrepHard((v) => !v)}
-                disabled={!totalVerbPrepsHard}
+                disabled={!prepHard && !prepHardAvailable}
                 className={`px-3 py-1.5 text-xs rounded-md border transition-colors disabled:opacity-40 ${
                   prepHard ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:bg-muted'
                 }`}
@@ -433,7 +449,7 @@ function ReviewInner() {
                 const lobbyTotal =
                   training === 'leeches' ? totalLeeches
                   : training === 'verbforms' ? totalVerbs
-                  : training === 'verbpreps' ? (prepHard ? totalVerbPrepsHard : totalVerbPreps)
+                  : training === 'verbpreps' ? prepCount
                   : totalDue;
                 return (
                   <Button

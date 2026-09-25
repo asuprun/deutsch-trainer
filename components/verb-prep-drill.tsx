@@ -9,9 +9,9 @@ import { useI18n } from '@/lib/i18n/context';
 import { useTTSContext } from '@/lib/tts-context';
 import { compareAnswer } from '@/lib/utils/compare';
 import { cn } from '@/lib/utils';
+import { firstCloze as findCloze, type Rektion } from '@/lib/verbs/prep-cloze';
 import type { Grade } from 'ts-fsrs';
 
-type Rektion = { prep: string; kasus: string };
 type Example = { de: string; ru: string };
 // Ein Verb kann MEHRERE Rektionen haben (erzählen von+Dativ / über+Akkusativ).
 type Verb = { ids: string[]; front: string; back: string; examples: Example[]; rektionen: Rektion[] };
@@ -26,26 +26,8 @@ function isOk(input: string, correct: string): boolean {
   return r === 'exact' || r === 'close';
 }
 
-// Sucht die Präposition als ganzes Wort im Beispielsatz und ersetzt sie durch ___
-function makeCloze(sentence: string, prep: string): { text: string; answer: string } | null {
-  const re = new RegExp(`(^|[^A-Za-zÄÖÜäöüß])(${prep})([^A-Za-zÄÖÜäöüß]|$)`, 'i');
-  const m = sentence.match(re);
-  if (!m) return null;
-  const idx = (m.index ?? 0) + m[1].length;
-  const answer = sentence.slice(idx, idx + m[2].length);
-  return { text: sentence.slice(0, idx) + '___' + sentence.slice(idx + m[2].length), answer };
-}
-
-// Erstes (Beispiel × Rektion)-Paar, das einen Lückentext ergibt
-function firstCloze(v: Verb): { text: string; answer: string; ru: string } | null {
-  for (const e of v.examples ?? []) {
-    for (const r of v.rektionen) {
-      const c = makeCloze(e.de, r.prep);
-      if (c) return { ...c, ru: e.ru };
-    }
-  }
-  return null;
-}
+// Lückentext für ein Verb (gemeinsame Logik mit der API, inkl. «für/gegen/um»)
+const firstCloze = (v: Verb) => findCloze(v.examples, v.rektionen);
 
 type Props = { count: number; sourceId: string | null; mode: Mode; hardOnly?: boolean; onExit: () => void };
 
@@ -69,6 +51,8 @@ export function VerbPrepDrill({ count, sourceId, mode, hardOnly = false, onExit 
       const qs = new URLSearchParams({ limit: String(count) });
       if (sourceId) qs.set('source_id', sourceId);
       if (hardOnly) qs.set('hard', '1');
+      // Satz-Modus: API filtert Verben ohne Beispielsatz schon VOR dem Limit
+      if (mode === 'cloze') qs.set('mode', 'cloze');
       const res = await fetch(`/api/review/verb-preps?${qs}`);
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d?.error?.message ?? `HTTP ${res.status}`); }
       const data = await res.json();

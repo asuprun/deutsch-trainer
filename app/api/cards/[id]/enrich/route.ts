@@ -85,12 +85,19 @@ export async function enrichCard(cardId: string): Promise<{ card: Record<string,
   if (fetchErr) return { error: { code: 'DB_ERROR', message: fetchErr.message } };
   if (!card) return { error: { code: 'NOT_FOUND', message: 'Карта не найдена' } };
 
+  // Bereits kuratierte Rektion mitgeben, damit die Beispiele genau DIESE Präposition
+  // verwenden (sonst fällt das Verb im Satz-Drill raus, z.B. sich bewerben bei vs. um).
+  const known = (card.forms ?? {}) as { praeposition?: string; kasus?: string };
+  const prepLine = known.praeposition
+    ? `\nИзвестное управление: «${card.front} ${known.praeposition}» + ${known.kasus ?? '?'}. ВСЕ примеры должны использовать глагол именно с предлогом «${known.praeposition}» в правильном падеже.`
+    : '';
+
   const prompt = `Обогати немецкую карточку для обучения:
 
 Слово/фраза (немецкий): "${card.front}"
 Текущий перевод (русский): "${card.back}"
 Тип карточки: ${card.kind}
-Текущий тип слова: ${card.word_type ?? 'не определён'}
+Текущий тип слова: ${card.word_type ?? 'не определён'}${prepLine}
 
 Задачи:
 1. Определи точный word_type: noun/verb/adjective/adverb/preposition/conjunction/numeral/phrase/other

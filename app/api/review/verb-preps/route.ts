@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import type { CardJson } from '@/lib/fsrs/scheduler';
+import { firstCloze } from '@/lib/verbs/prep-cloze';
 
 export const runtime = 'nodejs';
 
@@ -24,6 +25,8 @@ type VerbGroup = {
  * (z.B. erzählen von+Dativ / über+Akkusativ). Der Drill akzeptiert dann jede gültige
  * Rektion, statt eine bestimmte zu erzwingen. `limit` zählt Verben, nicht Karten.
  * `hard=1` — nur Verben, bei denen man sich oft irrt (nach Schwierigkeit sortiert).
+ * `mode=cloze` — nur Verben mit brauchbarem Beispielsatz; gefiltert VOR dem Limit,
+ * damit «10 Karten» auch wirklich 10 Aufgaben ergibt.
  */
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -33,6 +36,7 @@ export async function GET(req: Request) {
     : DEFAULT_LIMIT;
   const sourceId = url.searchParams.get('source_id');
   const hardOnly = url.searchParams.get('hard') === '1';
+  const clozeOnly = url.searchParams.get('mode') === 'cloze';
 
   const sb = getSupabaseAdmin();
 
@@ -86,8 +90,19 @@ export async function GET(req: Request) {
   }
 
   const groups = [...map.values()];
-  const hardGroups = groups.filter((g) => g.hard).sort((a, b) => b.hardness - a.hardness);
+  const hasCloze = new Set(groups.filter((g) => firstCloze(g.examples, g.rektionen)));
+  const byHardness = (a: VerbGroup, b: VerbGroup) => b.hardness - a.hardness;
 
-  const verbs = (hardOnly ? hardGroups : groups).slice(0, limit);
-  return NextResponse.json({ verbs, total: map.size, hardTotal: hardGroups.length });
+  const base = clozeOnly ? groups.filter((g) => hasCloze.has(g)) : groups;
+  const pool = hardOnly ? base.filter((g) => g.hard).sort(byHardness) : base;
+  const verbs = pool.slice(0, limit);
+
+  return NextResponse.json({
+    verbs,
+    total: groups.length,
+    hardTotal: groups.filter((g) => g.hard).length,
+    // Zähler für den Satz-Modus (nur Verben mit Beispielsatz)
+    clozeTotal: hasCloze.size,
+    clozeHardTotal: groups.filter((g) => g.hard && hasCloze.has(g)).length,
+  });
 }
