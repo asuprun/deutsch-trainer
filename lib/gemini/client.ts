@@ -12,25 +12,26 @@ export function getGemini(): GoogleGenerativeAI {
   return cached;
 }
 
-export const GEMINI_MODEL = 'gemini-2.5-flash-lite';
-export const GEMINI_FALLBACK_MODEL = 'gemini-2.0-flash-lite';
+export const GEMINI_MODEL = 'gemini-3.5-flash-lite';
+export const GEMINI_FALLBACK_MODEL = 'gemini-3.1-flash-lite';
 
 /**
- * Каскад моделей по приоритету.
- * При 429 (квота) или 404 (модель удалена) переключаемся на следующую.
- * Каждая даёт ~1500 RPD free → суммарно ~6000 RPD/день.
+ * Modell-Kaskade nach Priorität; bei 429 (Kontingent), 404 (abgeschaltet),
+ * 5xx oder abgeschnittenem JSON wird das nächste Modell versucht.
+ * Jedes Modell hat ein eigenes Free-Tier-Tageskontingent.
  *
- * Лимиты free tier:
- *   gemini-2.5-flash-lite — RPM: 10, RPD: ~1500
- *   gemini-2.5-flash      — RPM: 10, RPD: ~1500
- *   gemini-2.0-flash      — RPM: 10, RPD: 1500
- *   gemini-2.0-flash-lite — RPM: 10, RPD: 1500
+ * Stand 09/2026:
+ *  - gemini-2.0-flash / -lite wurden von Google abgeschaltet (404) → entfernt
+ *  - gemini-2.5-* haben nur noch ein sehr kleines Free-Kontingent (~20/Tag) → Reserve
+ *  - gemini-3.5-flash (ohne lite) antwortet teils minutenlang nicht → nicht verwenden
+ *  - die 3.x-lite-Modelle antworten in ~1 s und liefern sauberes JSON-Schema
  */
 export const GEMINI_CASCADE = [
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-flash-lite-latest',
   'gemini-2.5-flash-lite',
   'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
 ] as const;
 
 /**
@@ -42,7 +43,9 @@ export const GEMINI_CASCADE = [
 function isSkippable(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   if (/\b(429|404|500|502|503|504)\b/.test(msg)) return true;
-  return /Too Many Requests|quota|rate.?limit|not found|overload|unavailable|high demand|timeout|ECONNRESET|ETIMEDOUT|fetch failed/i.test(
+  // abgeschnittenes/kaputtes JSON (z.B. Token-Limit erreicht) → nächstes Modell probieren
+  if (err instanceof SyntaxError) return true;
+  return /Too Many Requests|quota|rate.?limit|not found|overload|unavailable|high demand|timeout|ECONNRESET|ETIMEDOUT|fetch failed|Unterminated string|Unexpected (token|end of JSON)/i.test(
     msg,
   );
 }
