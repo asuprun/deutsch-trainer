@@ -41,6 +41,9 @@ export async function POST(req: Request) {
   const { count: dueCount } = await db
     .from('cards')
     .select('id', { count: 'exact', head: true })
+    // nur begonnene Wörter (neue kommen über «Neue Wörter»), ohne Grammatik
+    .gt('reps', 0)
+    .neq('kind', 'grammar_rule')
     .lte('due_at', new Date().toISOString());
 
   if (!dueCount || dueCount === 0) {

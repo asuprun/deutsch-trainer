@@ -2,15 +2,12 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import type { CardJson } from '@/lib/fsrs/scheduler';
 import { firstCloze } from '@/lib/verbs/prep-cloze';
+import { hardCardIds } from '@/lib/fsrs/hard';
 
 export const runtime = 'nodejs';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 500;
-
-// «Trudnoe» — wie im allgemeinen Leech-Filter: hohe FSRS-Schwierigkeit ODER ein Fehler.
-const HARD_MIN_DIFFICULTY = 7; // FSRS-Skala 1..10
-const HARD_MIN_LAPSES = 1;
 
 type Rektion = { prep: string; kasus: string };
 type Example = { de: string; ru: string };
@@ -60,6 +57,9 @@ export async function GET(req: Request) {
     );
   }
 
+  // «Meine Fehler»: gleiche Regel wie Schwierige (inkl. Austritt nach 2 richtigen in Folge)
+  const hardIds = await hardCardIds(sb, data ?? []);
+
   // nach Verb gruppieren, Rektionen + Beispiele zusammenführen (Reihenfolge bleibt erhalten)
   const map = new Map<string, VerbGroup>();
   for (const c of data ?? []) {
@@ -82,11 +82,10 @@ export async function GET(req: Request) {
     for (const e of (c.examples ?? []) as Example[]) {
       if (e?.de && !g.examples.some((x) => x.de === e.de)) g.examples.push(e);
     }
-    // Schwierigkeit: nur bereits geübte Karten (reps>0) zählen als «trudno»
+    // Verb ist «schwer», sobald eine seiner Karten schwer ist
+    if (hardIds.has(c.id)) g.hard = true;
     const difficulty = (c.fsrs_state as CardJson | null)?.difficulty ?? 0;
-    const lapses = c.lapses ?? 0;
-    if ((c.reps ?? 0) > 0 && (difficulty >= HARD_MIN_DIFFICULTY || lapses >= HARD_MIN_LAPSES)) g.hard = true;
-    g.hardness = Math.max(g.hardness, difficulty + lapses * 2);
+    g.hardness = Math.max(g.hardness, difficulty + (c.lapses ?? 0) * 2);
   }
 
   const groups = [...map.values()];

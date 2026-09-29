@@ -19,6 +19,9 @@ export async function GET() {
       db
         .from('cards')
         .select('id', { count: 'exact', head: true })
+        // wie die Wiederholungs-Warteschlange: nur begonnene Wörter, ohne Grammatik
+        .gt('reps', 0)
+        .neq('kind', 'grammar_rule')
         .lte('due_at', new Date().toISOString()),
 
       // Всего карт

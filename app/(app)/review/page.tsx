@@ -16,6 +16,9 @@ import { VerbRecognitionDrill } from '@/components/verb-recognition-drill';
 import { VerbPatterns } from '@/components/verb-patterns';
 import { VerbPrepDrill } from '@/components/verb-prep-drill';
 import { DeckClozeSession } from '@/components/deck-cloze-session';
+import { NewWordsSession } from '@/components/new-words-session';
+import { PronounDrill, type PronMode } from '@/components/pronoun-drill';
+import { FORM_ITEMS, SENTENCE_ITEMS } from '@/lib/pronouns/data';
 import type { Grade } from 'ts-fsrs';
 import { useI18n } from '@/lib/i18n/context';
 
@@ -28,12 +31,12 @@ type QueueResponse = {
   due_count_total: number;
 };
 
-type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error' | 'gender' | 'verbforms' | 'verbrecognition' | 'verbpatterns' | 'verbpreps' | 'cloze';
+type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error' | 'gender' | 'verbforms' | 'verbrecognition' | 'verbpatterns' | 'verbpreps' | 'cloze' | 'newwords' | 'pronouns';
 type VerbDir = 'forms' | 'recognition';
 type PrepMode = 'recall' | 'cloze';
 type Mode = 'cards' | 'typing';
 type Direction = 'de-ru' | 'ru-de';
-type Training = 'words' | 'gender' | 'leeches' | 'verbforms' | 'verbpreps';
+type Training = 'words' | 'new' | 'gender' | 'leeches' | 'verbforms' | 'verbpreps' | 'pronouns';
 
 export default function ReviewPage() {
   return (
@@ -65,6 +68,8 @@ function ReviewInner() {
   const [verbDir, setVerbDir] = useState<VerbDir>('forms');
   const [prepMode, setPrepMode] = useState<PrepMode>('recall');
   const [prepHard, setPrepHard] = useState(false);
+  const [pronMode, setPronMode] = useState<PronMode>('sentences');
+  const [totalNew, setTotalNew] = useState<number | null>(null);
   const [limit, setLimit] = useState<number>(sourceId ? 500 : 20);
   const [totalDue, setTotalDue] = useState<number | null>(null);
   const [totalLeeches, setTotalLeeches] = useState<number | null>(null);
@@ -86,6 +91,15 @@ function ReviewInner() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data && typeof data.due_count_total === 'number') setTotalDue(data.due_count_total);
+      })
+      .catch(() => {});
+    // Neue Wörter (noch nie geübt) — kommen nur bewusst über «Neue Wörter» ins Lernen
+    const newQs = new URLSearchParams(base);
+    newQs.set('new', '1');
+    fetch(`/api/review/queue?${newQs}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data.due_count_total === 'number') setTotalNew(data.due_count_total);
       })
       .catch(() => {});
     // Трудные слова
@@ -233,6 +247,16 @@ function ReviewInner() {
     );
   }
 
+  // ── Neue Wörter kennenlernen ─────────────────────────────────────────────────
+  if (status === 'newwords') {
+    return <NewWordsSession count={limit} sourceId={sourceId} onExit={() => setStatus('lobby')} />;
+  }
+
+  // ── Pronomen-Trainer ─────────────────────────────────────────────────────────
+  if (status === 'pronouns') {
+    return <PronounDrill count={limit} mode={pronMode} onExit={() => setStatus('lobby')} />;
+  }
+
   // ── Verb-mit-Präposition-Drill ───────────────────────────────────────────────
   if (status === 'verbpreps') {
     return (
@@ -318,9 +342,11 @@ function ReviewInner() {
             <div className="flex flex-wrap justify-center gap-2">
               {([
                 ['words', t('review_train_words')],
+                ['new', t('review_train_new')],
                 ['gender', t('review_train_gender')],
                 ['verbforms', t('review_train_verbforms')],
                 ['verbpreps', t('review_train_verbpreps')],
+                ['pronouns', t('review_train_pronouns')],
                 ['leeches', t('review_train_leeches')],
               ] as const).map(([value, label]) => (
                 <button
@@ -345,6 +371,41 @@ function ReviewInner() {
               </span>{' '}
               {sourceId ? t('review_lobby_deck_count') : t('review_lobby_due')}
             </p>
+          )}
+          {/* Nichts zu wiederholen, aber neue Wörter da → dorthin lenken */}
+          {training === 'words' && !sourceId && totalDue === 0 && !!totalNew && (
+            <Button variant="outline" size="sm" onClick={() => setTraining('new')}>
+              {t('review_goto_new')} ({totalNew})
+            </Button>
+          )}
+          {training === 'new' && (
+            <div className="flex flex-col items-center gap-2 max-w-sm text-center">
+              <p className="text-muted-foreground text-sm">
+                <span className="text-2xl font-bold text-foreground tabular-nums">{totalNew ?? '...'}</span>{' '}
+                {t('review_lobby_new_count')}
+              </p>
+              <p className="text-xs text-muted-foreground">{t('new_hint')}</p>
+            </div>
+          )}
+          {training === 'pronouns' && (
+            <div className="flex flex-col items-center gap-3">
+              <div className="flex rounded-md border overflow-hidden">
+                {(['sentences', 'forms'] as const).map((m, i) => (
+                  <button
+                    key={m}
+                    onClick={() => setPronMode(m)}
+                    className={`px-3 py-1.5 text-xs transition-colors ${i ? 'border-l' : ''} ${
+                      pronMode === m ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {m === 'forms' ? t('pron_mode_forms') : t('pron_mode_sentences')}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground max-w-xs text-center">
+                {pronMode === 'forms' ? t('pron_mode_forms_desc') : t('pron_mode_sentences_desc')}
+              </p>
+            </div>
           )}
           {training === 'leeches' && (
             <p className="text-muted-foreground text-sm">
@@ -450,6 +511,8 @@ function ReviewInner() {
                   training === 'leeches' ? totalLeeches
                   : training === 'verbforms' ? totalVerbs
                   : training === 'verbpreps' ? prepCount
+                  : training === 'new' ? totalNew
+                  : training === 'pronouns' ? (pronMode === 'forms' ? FORM_ITEMS.length : SENTENCE_ITEMS.length)
                   : totalDue;
                 return (
                   <Button
@@ -503,6 +566,8 @@ function ReviewInner() {
                 setStatus(verbDir === 'recognition' ? 'verbrecognition' : 'verbforms');
               }
               else if (training === 'verbpreps') setStatus('verbpreps');
+              else if (training === 'new') setStatus('newwords');
+              else if (training === 'pronouns') setStatus('pronouns');
               else loadQueue(limit, training === 'leeches');
             }}
             className="mt-2 min-w-[160px]"
@@ -555,8 +620,14 @@ function ReviewInner() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-6 text-center">
         <h1 className="text-3xl font-semibold">{t('review_empty')}</h1>
         <p className="text-muted-foreground max-w-md">{t('review_empty_desc')}</p>
-        <div className="flex gap-3 mt-2">
-          <Button asChild>
+        <div className="flex flex-wrap justify-center gap-3 mt-2">
+          {/* Nichts fällig, aber neue Wörter vorhanden → direkt zum Kennenlernen */}
+          {!!totalNew && (
+            <Button onClick={() => { setTraining('new'); setStatus('newwords'); }}>
+              {t('review_goto_new')} ({totalNew})
+            </Button>
+          )}
+          <Button asChild variant={totalNew ? 'outline' : 'default'}>
             <Link href="/upload">{t('cards_upload_btn')}</Link>
           </Button>
           <Button variant="outline" asChild>
