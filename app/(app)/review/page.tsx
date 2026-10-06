@@ -6,7 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Loader2, X, RotateCw, Home, FlipHorizontal2, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ReviewCard, type ReviewCardData } from '@/components/review-card';
+import { ReviewCard, CardForms, CardExtras, type ReviewCardData } from '@/components/review-card';
+import { stripArticle } from '@/lib/utils';
 import { SwipeCard } from '@/components/swipe-card';
 import { RatingButtons, type RatingIntervals } from '@/components/rating-buttons';
 import { TypingInput } from '@/components/typing-input';
@@ -19,6 +20,8 @@ import { DeckClozeSession } from '@/components/deck-cloze-session';
 import { NewWordsSession } from '@/components/new-words-session';
 import { PronounDrill, type PronMode } from '@/components/pronoun-drill';
 import { FORM_ITEMS, SENTENCE_ITEMS } from '@/lib/pronouns/data';
+import { GrammarDrill } from '@/components/grammar-drill';
+import { DRILL_TOPICS, itemsFor, type DrillTopic } from '@/lib/grammar-drills/data';
 import type { Grade } from 'ts-fsrs';
 import { useI18n } from '@/lib/i18n/context';
 
@@ -31,12 +34,12 @@ type QueueResponse = {
   due_count_total: number;
 };
 
-type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error' | 'gender' | 'verbforms' | 'verbrecognition' | 'verbpatterns' | 'verbpreps' | 'cloze' | 'newwords' | 'pronouns';
+type Status = 'lobby' | 'loading' | 'empty' | 'active' | 'done' | 'error' | 'gender' | 'verbforms' | 'verbrecognition' | 'verbpatterns' | 'verbpreps' | 'cloze' | 'newwords' | 'pronouns' | 'grammar';
 type VerbDir = 'forms' | 'recognition';
 type PrepMode = 'recall' | 'cloze';
 type Mode = 'cards' | 'typing';
 type Direction = 'de-ru' | 'ru-de';
-type Training = 'words' | 'new' | 'gender' | 'leeches' | 'verbforms' | 'verbpreps' | 'pronouns';
+type Training = 'words' | 'new' | 'gender' | 'leeches' | 'verbforms' | 'verbpreps' | 'pronouns' | 'grammar';
 
 export default function ReviewPage() {
   return (
@@ -69,6 +72,7 @@ function ReviewInner() {
   const [prepMode, setPrepMode] = useState<PrepMode>('recall');
   const [prepHard, setPrepHard] = useState(false);
   const [pronMode, setPronMode] = useState<PronMode>('sentences');
+  const [gTopic, setGTopic] = useState<DrillTopic | 'all'>('all');
   const [totalNew, setTotalNew] = useState<number | null>(null);
   const [limit, setLimit] = useState<number>(sourceId ? 500 : 20);
   const [totalDue, setTotalDue] = useState<number | null>(null);
@@ -257,6 +261,11 @@ function ReviewInner() {
     return <PronounDrill count={limit} mode={pronMode} onExit={() => setStatus('lobby')} />;
   }
 
+  // ── Grammatik-Trainer ────────────────────────────────────────────────────────
+  if (status === 'grammar') {
+    return <GrammarDrill count={limit} topic={gTopic} onExit={() => setStatus('lobby')} />;
+  }
+
   // ── Verb-mit-Präposition-Drill ───────────────────────────────────────────────
   if (status === 'verbpreps') {
     return (
@@ -347,6 +356,7 @@ function ReviewInner() {
                 ['verbforms', t('review_train_verbforms')],
                 ['verbpreps', t('review_train_verbpreps')],
                 ['pronouns', t('review_train_pronouns')],
+                ['grammar', t('review_train_grammar')],
                 ['leeches', t('review_train_leeches')],
               ] as const).map(([value, label]) => (
                 <button
@@ -405,6 +415,24 @@ function ReviewInner() {
               <p className="text-xs text-muted-foreground max-w-xs text-center">
                 {pronMode === 'forms' ? t('pron_mode_forms_desc') : t('pron_mode_sentences_desc')}
               </p>
+            </div>
+          )}
+          {training === 'grammar' && (
+            <div className="flex flex-col items-center gap-3 max-w-md">
+              <div className="flex flex-wrap justify-center gap-2">
+                {(['all', ...DRILL_TOPICS] as const).map((tp) => (
+                  <button
+                    key={tp}
+                    onClick={() => setGTopic(tp)}
+                    className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                      gTopic === tp ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {t(`gdrill_topic_${tp}`)}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground max-w-xs text-center">{t('gdrill_desc')}</p>
             </div>
           )}
           {training === 'leeches' && (
@@ -512,6 +540,7 @@ function ReviewInner() {
                   : training === 'verbforms' ? totalVerbs
                   : training === 'verbpreps' ? prepCount
                   : training === 'new' ? totalNew
+                  : training === 'grammar' ? itemsFor(gTopic).length
                   : training === 'pronouns' ? (pronMode === 'forms' ? FORM_ITEMS.length : SENTENCE_ITEMS.length)
                   : totalDue;
                 return (
@@ -568,6 +597,7 @@ function ReviewInner() {
               else if (training === 'verbpreps') setStatus('verbpreps');
               else if (training === 'new') setStatus('newwords');
               else if (training === 'pronouns') setStatus('pronouns');
+              else if (training === 'grammar') setStatus('grammar');
               else loadQueue(limit, training === 'leeches');
             }}
             className="mt-2 min-w-[160px]"
@@ -750,6 +780,18 @@ function ReviewInner() {
               intervals={current.intervals}
               onRate={handleRate}
               disabled={submitting}
+              extra={(
+                <div className="flex flex-col gap-4">
+                  <div className="rounded-lg border bg-card p-4">
+                    <p className="text-lg font-medium">
+                      {current.gender ? `${current.gender} ` : ''}{current.gender ? stripArticle(current.front) : current.front}
+                      {current.plural && <span className="text-sm text-muted-foreground"> · {t('revcard_plural')} {current.plural}</span>}
+                    </p>
+                    <CardForms card={current} />
+                  </div>
+                  <CardExtras card={current} />
+                </div>
+              )}
             />
           )}
         </div>

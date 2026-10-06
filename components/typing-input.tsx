@@ -17,9 +17,11 @@ type Props = {
   intervals: RatingIntervals | null;
   onRate: (grade: Grade) => void;
   disabled?: boolean;
+  /** Zusatzinfos (Formen, Beispiele) — erst nach der Prüfung sichtbar */
+  extra?: React.ReactNode;
 };
 
-export function TypingInput({ correctAnswer, hint, intervals, onRate, disabled }: Props) {
+export function TypingInput({ correctAnswer, hint, intervals, onRate, disabled, extra }: Props) {
   const { t } = useI18n();
   const inputRef   = useRef<HTMLInputElement>(null);
   const nextBtnRef = useRef<HTMLButtonElement>(null);
@@ -151,6 +153,8 @@ export function TypingInput({ correctAnswer, hint, intervals, onRate, disabled }
           )}
         </div>
       )}
+
+      {checked && extra}
 
       {checked && (
         <div className="flex flex-col gap-3">

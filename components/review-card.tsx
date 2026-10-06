@@ -65,19 +65,6 @@ export function ReviewCard({ card, flipped, autoTts = true, reversed = false }: 
   // Если род показан отдельно — убираем артикль из слова, чтобы не было «die die Kalorie»
   const germanWord = card.gender ? stripArticle(card.front) : card.front;
   const wordTypeLabel = card.word_type ? WORD_TYPE_LABEL[card.word_type] : '';
-  const forms = card.forms as
-    | {
-        infinitiv?: string;
-        praesens?: string;
-        praeteritum?: string;
-        partizip_2?: string;
-        hilfsverb?: string;
-        trennbar?: boolean;
-        komparativ?: string;
-        superlativ?: string;
-      }
-    | null
-    | undefined;
 
   return (
     <div className="w-full [perspective:1200px]">
@@ -139,45 +126,79 @@ export function ReviewCard({ card, flipped, autoTts = true, reversed = false }: 
             <div className="w-full max-w-xl rounded-lg border bg-card p-4">
               <p className="text-xl">{card.back}</p>
 
-              {forms?.infinitiv && (
-                <div className="mt-3 text-sm text-muted-foreground border-t pt-3">
-                  {forms.infinitiv}
-                  {forms.praesens && ` · ${forms.praesens}`}
-                  {' · '}{forms.praeteritum} · {forms.partizip_2}
-                  {forms.hilfsverb && ` · ${forms.hilfsverb}`}
-                  {forms.trennbar && ` · ${t('revcard_verb_sep')}`}
-                </div>
-              )}
-              {forms?.komparativ && (
-                <div className="mt-3 text-sm text-muted-foreground border-t pt-3">
-                  {forms.komparativ} · {forms.superlativ}
-                </div>
-              )}
+              <CardForms card={card} />
             </div>
 
-            {card.examples && card.examples.length > 0 && (
-              <div className="w-full max-w-xl space-y-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('revcard_examples')}</p>
-                {card.examples.map((ex, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <TTSButton text={ex.de} size="icon" className="size-7 mt-0.5 shrink-0" />
-                    <div className="flex flex-col gap-0.5">
-                      <div className="font-medium text-[15px] leading-snug">{ex.de}</div>
-                      <div className="text-muted-foreground text-[13px]">{ex.ru}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {card.mnemonic && (
-              <div className="w-full max-w-xl rounded-md bg-amber-500/10 border border-amber-500/30 p-3 text-sm">
-                💡 {card.mnemonic}
-              </div>
-            )}
+            <CardExtras card={card} />
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+type Forms = {
+  infinitiv?: string;
+  praesens?: string;
+  praeteritum?: string;
+  partizip_2?: string;
+  hilfsverb?: string;
+  trennbar?: boolean;
+  komparativ?: string;
+  superlativ?: string;
+};
+
+/** Verbformen bzw. Komparativ/Superlativ — auch nach der Eingabe-Prüfung gezeigt */
+export function CardForms({ card }: { card: ReviewCardData }) {
+  const { t } = useI18n();
+  const forms = card.forms as Forms | null | undefined;
+  return (
+    <>
+        {forms?.infinitiv && (
+          <div className="mt-3 text-sm text-muted-foreground border-t pt-3">
+            {forms.infinitiv}
+            {forms.praesens && ` · ${forms.praesens}`}
+            {' · '}{forms.praeteritum} · {forms.partizip_2}
+            {forms.hilfsverb && ` · ${forms.hilfsverb}`}
+            {forms.trennbar && ` · ${t('revcard_verb_sep')}`}
+          </div>
+        )}
+        {forms?.komparativ && (
+          <div className="mt-3 text-sm text-muted-foreground border-t pt-3">
+            {forms.komparativ} · {forms.superlativ}
+          </div>
+        )}
+
+    </>
+  );
+}
+
+/** Beispielsätze und Eselsbrücke */
+export function CardExtras({ card }: { card: ReviewCardData }) {
+  const { t } = useI18n();
+  return (
+    <>
+      {card.examples && card.examples.length > 0 && (
+        <div className="w-full max-w-xl space-y-3">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('revcard_examples')}</p>
+          {card.examples.map((ex, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <TTSButton text={ex.de} size="icon" className="size-7 mt-0.5 shrink-0" />
+              <div className="flex flex-col gap-0.5">
+                <div className="font-medium text-[15px] leading-snug">{ex.de}</div>
+                <div className="text-muted-foreground text-[13px]">{ex.ru}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {card.mnemonic && (
+        <div className="w-full max-w-xl rounded-md bg-amber-500/10 border border-amber-500/30 p-3 text-sm">
+          💡 {card.mnemonic}
+        </div>
+      )}
+
+    </>
   );
 }
