@@ -28,7 +28,9 @@ const grammarInput = z.object({
 });
 
 const bodySchema = z.object({
-  source_id: z.string().uuid(),
+  // Без source_id (импорт из чата Claude) источник создаётся здесь
+  source_id: z.string().uuid().optional(),
+  source_title: z.string().min(1).max(200).optional(),
   cards: z.array(cardInput).max(200).default([]),
   grammar_notes: z.array(grammarInput).max(50).default([]),
 });
@@ -48,7 +50,7 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return err('VALIDATION_ERROR', 'Bad request shape', 400, parsed.error.flatten());
   }
-  const { source_id, cards, grammar_notes } = parsed.data;
+  const { cards, grammar_notes, source_title } = parsed.data;
 
   if (cards.length === 0 && grammar_notes.length === 0) {
     return err('EMPTY', 'Нужна хотя бы одна карта или грамматическая заметка', 400);
@@ -56,13 +58,24 @@ export async function POST(req: Request) {
 
   const sb = getSupabaseAdmin();
 
-  const { data: sourceRow, error: srcErr } = await sb
-    .from('sources')
-    .select('id')
-    .eq('id', source_id)
-    .maybeSingle();
-  if (srcErr) return err('DB_ERROR', srcErr.message, 500);
-  if (!sourceRow) return err('NOT_FOUND', 'source_id не найден', 404);
+  let source_id = parsed.data.source_id;
+  if (source_id) {
+    const { data: sourceRow, error: srcErr } = await sb
+      .from('sources')
+      .select('id')
+      .eq('id', source_id)
+      .maybeSingle();
+    if (srcErr) return err('DB_ERROR', srcErr.message, 500);
+    if (!sourceRow) return err('NOT_FOUND', 'source_id не найден', 404);
+  } else {
+    const { data: newSource, error: newErr } = await sb
+      .from('sources')
+      .insert({ image_path: `import/claude-${Date.now()}`, title: source_title ?? 'Импорт из чата Claude' })
+      .select('id')
+      .single();
+    if (newErr || !newSource) return err('DB_ERROR', newErr?.message ?? 'source insert failed', 500);
+    source_id = newSource.id as string;
+  }
 
   const now = new Date().toISOString();
   const emptyCard = createEmptyCard();

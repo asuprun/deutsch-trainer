@@ -2,44 +2,12 @@ import { NextResponse } from 'next/server';
 import { createEmptyCard } from 'ts-fsrs';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { normalizeTags } from '@/lib/utils';
+import { parseWordList } from '@/lib/import/parse-wordlist';
 
 export const runtime = 'nodejs';
 
 function err(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
-}
-
-/** Убираем HTML-теги, которые Anki может добавлять в поля */
-function stripHtml(s: string): string {
-  return s.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').trim();
-}
-
-/** Определяем разделитель: таб → запятая → точка с запятой */
-function detectSep(firstLine: string): string {
-  if (firstLine.includes('\t')) return '\t';
-  if (firstLine.includes(',')) return ',';
-  return ';';
-}
-
-/** Разбираем одну строку CSV с учётом кавычек */
-function parseLine(line: string, sep: string): string[] {
-  if (sep !== ',') return line.split(sep);
-  const fields: string[] = [];
-  let cur = '';
-  let inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
-      else inQ = !inQ;
-    } else if (ch === sep && !inQ) {
-      fields.push(cur); cur = '';
-    } else {
-      cur += ch;
-    }
-  }
-  fields.push(cur);
-  return fields;
 }
 
 export async function POST(req: Request) {
@@ -56,21 +24,7 @@ export async function POST(req: Request) {
   }
 
   const text = await (file as File).text();
-  const rawLines = text.split(/\r?\n/).filter((l) => l.trim());
-
-  // Пропускаем комментарии Anki (#separator:tab, #html:true и т.п.)
-  const lines = rawLines.filter((l) => !l.startsWith('#'));
-
-  if (lines.length === 0) {
-    return err('EMPTY', 'Файл не содержит строк с данными', 400);
-  }
-
-  const sep = detectSep(lines[0]);
-
-  const parsed = lines.map((l) => parseLine(l, sep).map(stripHtml));
-
-  // Валидируем минимум: нужны хотя бы 2 колонки
-  const valid = parsed.filter((r) => r.length >= 2 && r[0].trim() && r[1].trim());
+  const { sep, rows: valid } = parseWordList(text);
 
   if (valid.length === 0) {
     return err('NO_VALID_ROWS', 'Не удалось найти строки с двумя заполненными колонками (немецкий | перевод)', 400);
@@ -82,11 +36,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       total: valid.length,
       separator: sep === '\t' ? 'tab' : sep,
-      preview: valid.slice(0, 10).map((r) => ({
-        front: r[0],
-        back: r[1],
-        tags: r[2] ? r[2].split('::').map((t) => t.trim()).filter(Boolean) : [],
-      })),
+      preview: valid.slice(0, 10),
     });
   }
 
@@ -99,7 +49,7 @@ export async function POST(req: Request) {
   // Создаём виртуальный source
   const { data: sourceRow, error: srcErr } = await db
     .from('sources')
-    .insert({ image_path: `import/anki-${Date.now()}`, title: 'Импорт из Anki' })
+    .insert({ image_path: `import/anki-${Date.now()}`, title: sep === '|' ? 'Импорт списка слов' : 'Импорт из Anki' })
     .select('id')
     .single();
 
@@ -110,9 +60,10 @@ export async function POST(req: Request) {
   const rows = valid.map((r) => ({
     source_id: sourceRow.id,
     kind: 'vocab' as const,
-    front: r[0].slice(0, 500),
-    back: r[1].slice(0, 2000),
-    tags: r[2] ? normalizeTags(r[2].split('::')).slice(0, 20) : [],
+    front: r.front.slice(0, 500),
+    back: r.back.slice(0, 2000),
+    examples: r.example ? [{ de: r.example.slice(0, 500), ru: '' }] : null,
+    tags: normalizeTags(r.tags).slice(0, 20),
     fsrs_state: fsrsBase,
     due_at: fsrsBase.due ?? now,
   }));
