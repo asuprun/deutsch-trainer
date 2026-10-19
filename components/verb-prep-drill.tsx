@@ -18,7 +18,13 @@ type Verb = { ids: string[]; front: string; back: string; examples: Example[]; r
 type Status = 'loading' | 'empty' | 'active' | 'done' | 'error';
 type Mode = 'recall' | 'cloze';
 
-const KASUS = ['Akkusativ', 'Dativ', 'Genitiv'] as const;
+export type KasusFilter = 'all' | 'Akkusativ' | 'Dativ' | 'AkkDat';
+const KASUS_BY_FILTER: Record<KasusFilter, readonly string[]> = {
+  all: ['Akkusativ', 'Dativ', 'Genitiv'],
+  Akkusativ: ['Akkusativ'],
+  Dativ: ['Dativ'],
+  AkkDat: ['Akkusativ', 'Dativ'],
+};
 
 function isOk(input: string, correct: string): boolean {
   if (!input.trim()) return false;
@@ -29,9 +35,9 @@ function isOk(input: string, correct: string): boolean {
 // Lückentext für ein Verb (gemeinsame Logik mit der API, inkl. «für/gegen/um»)
 const firstCloze = (v: Verb) => findCloze(v.examples, v.rektionen);
 
-type Props = { count: number; sourceId: string | null; mode: Mode; hardOnly?: boolean; onExit: () => void };
+type Props = { count: number; sourceId: string | null; mode: Mode; hardOnly?: boolean; kasusFilter?: KasusFilter; onExit: () => void };
 
-export function VerbPrepDrill({ count, sourceId, mode, hardOnly = false, onExit }: Props) {
+export function VerbPrepDrill({ count, sourceId, mode, hardOnly = false, kasusFilter = 'all', onExit }: Props) {
   const { t } = useI18n();
   const { speak } = useTTSContext();
   const [status, setStatus] = useState<Status>('loading');
@@ -51,6 +57,7 @@ export function VerbPrepDrill({ count, sourceId, mode, hardOnly = false, onExit 
       const qs = new URLSearchParams({ limit: String(count) });
       if (sourceId) qs.set('source_id', sourceId);
       if (hardOnly) qs.set('hard', '1');
+      if (kasusFilter !== 'all') qs.set('kasus', kasusFilter);
       // Satz-Modus: API filtert Verben ohne Beispielsatz schon VOR dem Limit
       if (mode === 'cloze') qs.set('mode', 'cloze');
       const res = await fetch(`/api/review/verb-preps?${qs}`);
@@ -68,7 +75,7 @@ export function VerbPrepDrill({ count, sourceId, mode, hardOnly = false, onExit 
       setError(e instanceof Error ? e.message : String(e));
       setStatus('error');
     }
-  }, [count, sourceId, mode, hardOnly]);
+  }, [count, sourceId, mode, hardOnly, kasusFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -77,8 +84,11 @@ export function VerbPrepDrill({ count, sourceId, mode, hardOnly = false, onExit 
   const cloze = useMemo(() => (mode === 'cloze' && current ? firstCloze(current) : null), [mode, current]);
 
   // Recall: passende Rektion (Präposition richtig) bzw. voll richtig (Präp + Kasus)
+  // Bei nur einem Kasus ist er vorgegeben (keine Auswahl nötig)
+  const kasusChoices = KASUS_BY_FILTER[kasusFilter];
+  const kk = kasusChoices.length === 1 ? kasusChoices[0] : kasus;
   const prepMatch = current && mode === 'recall' ? current.rektionen.find((r) => isOk(prep, r.prep)) : undefined;
-  const fullMatch = current && mode === 'recall' ? current.rektionen.find((r) => isOk(prep, r.prep) && kasus === r.kasus) : undefined;
+  const fullMatch = current && mode === 'recall' ? current.rektionen.find((r) => isOk(prep, r.prep) && kk === r.kasus) : undefined;
   const prepOk = mode === 'cloze' ? isOk(clozeInput, cloze?.answer ?? '') : !!prepMatch;
   const allOk = mode === 'cloze' ? prepOk : !!fullMatch;
   // Welche Kasus sind für die aktuelle Eingabe korrekt (zum Einfärben der Buttons)?
@@ -97,7 +107,7 @@ export function VerbPrepDrill({ count, sourceId, mode, hardOnly = false, onExit 
       : current.rektionen.some((r) => isOk(prep, r.prep));
     const full = mode === 'cloze'
       ? pOk
-      : current.rektionen.some((r) => isOk(prep, r.prep) && kasus === r.kasus);
+      : current.rektionen.some((r) => isOk(prep, r.prep) && kk === r.kasus);
     if (full) setScore((s) => s + 1);
 
     // Vorlesen: Verb mit (getroffener) Präposition
@@ -114,7 +124,7 @@ export function VerbPrepDrill({ count, sourceId, mode, hardOnly = false, onExit 
           body: JSON.stringify({ card_id: id, rating }),
         })));
     } catch { toast.error(t('review_save_error')); }
-  }, [current, checked, mode, prep, kasus, clozeInput, prepMatch, cloze, speak, t]);
+  }, [current, checked, mode, prep, kasus, kk, clozeInput, prepMatch, cloze, speak, t]);
 
   const next = useCallback(() => {
     setChecked(false); setPrep(''); setKasus(null); setClozeInput('');
@@ -206,10 +216,10 @@ export function VerbPrepDrill({ count, sourceId, mode, hardOnly = false, onExit 
                   />
                 </div>
 
-                <div className="flex flex-col gap-1">
+                {kasusChoices.length > 1 && <div className="flex flex-col gap-1">
                   <label className="text-xs text-muted-foreground">Kasus</label>
                   <div className="flex gap-2">
-                    {KASUS.map((k) => {
+                    {kasusChoices.map((k) => {
                       const isCorrect = checked && correctKasus.has(k);
                       const isWrong = checked && kasus === k && !correctKasus.has(k);
                       return (
@@ -224,7 +234,7 @@ export function VerbPrepDrill({ count, sourceId, mode, hardOnly = false, onExit 
                       );
                     })}
                   </div>
-                </div>
+                </div>}
 
                 {/* Nach der Prüfung: alle gültigen Rektionen zeigen */}
                 {checked && (

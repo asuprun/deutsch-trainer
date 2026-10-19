@@ -15,7 +15,7 @@ import { GenderDrill } from '@/components/gender-drill';
 import { VerbFormsDrill } from '@/components/verb-forms-drill';
 import { VerbRecognitionDrill } from '@/components/verb-recognition-drill';
 import { VerbPatterns } from '@/components/verb-patterns';
-import { VerbPrepDrill } from '@/components/verb-prep-drill';
+import { VerbPrepDrill, type KasusFilter } from '@/components/verb-prep-drill';
 import { DeckClozeSession } from '@/components/deck-cloze-session';
 import { NewWordsSession } from '@/components/new-words-session';
 import { PronounDrill, type PronMode } from '@/components/pronoun-drill';
@@ -71,6 +71,7 @@ function ReviewInner() {
   const [verbDir, setVerbDir] = useState<VerbDir>('forms');
   const [prepMode, setPrepMode] = useState<PrepMode>('recall');
   const [prepHard, setPrepHard] = useState(false);
+  const [prepKasus, setPrepKasus] = useState<KasusFilter>('all');
   const [pronMode, setPronMode] = useState<PronMode>('sentences');
   const [gTopic, setGTopic] = useState<DrillTopic | 'all'>('all');
   const [totalNew, setTotalNew] = useState<number | null>(null);
@@ -123,7 +124,7 @@ function ReviewInner() {
       })
       .catch(() => {});
     // Глаголы с предлогом
-    fetch(`/api/review/verb-preps?${base}`)
+    fetch(`/api/review/verb-preps?${base}${prepKasus !== 'all' ? `&kasus=${prepKasus}` : ''}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data && typeof data.total === 'number') setTotalVerbPreps(data.total);
@@ -132,7 +133,7 @@ function ReviewInner() {
         if (data && typeof data.clozeHardTotal === 'number') setTotalVerbPrepsClozeHard(data.clozeHardTotal);
       })
       .catch(() => {});
-  }, [status, sourceId]);
+  }, [status, sourceId, prepKasus]);
 
   const loadQueue = useCallback(async (selectedLimit: number, leeches = false) => {
     setStatus('loading');
@@ -274,6 +275,7 @@ function ReviewInner() {
         sourceId={sourceId}
         mode={prepMode}
         hardOnly={prepHard}
+        kasusFilter={prepKasus}
         onExit={() => setStatus('lobby')}
       />
     );
@@ -507,6 +509,20 @@ function ReviewInner() {
                   {prepNoExample} {t('verbprep_no_example')}
                 </p>
               )}
+              {/* Kasus wählen: nur Akkusativ-, nur Dativ-Verben oder beide */}
+              <div className="flex rounded-md border overflow-hidden">
+                {(['all', 'Akkusativ', 'Dativ', 'AkkDat'] as const).map((k, i) => (
+                  <button
+                    key={k}
+                    onClick={() => setPrepKasus(k)}
+                    className={`px-3 py-1.5 text-xs transition-colors ${i ? 'border-l' : ''} ${
+                      prepKasus === k ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {t(`verbprep_kasus_${k}`)}
+                  </button>
+                ))}
+              </div>
               {/* Nur Verben, bei denen man sich oft irrt */}
               <button
                 onClick={() => setPrepHard((v) => !v)}

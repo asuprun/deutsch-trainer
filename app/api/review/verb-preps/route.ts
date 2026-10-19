@@ -34,6 +34,10 @@ export async function GET(req: Request) {
   const sourceId = url.searchParams.get('source_id');
   const hardOnly = url.searchParams.get('hard') === '1';
   const clozeOnly = url.searchParams.get('mode') === 'cloze';
+  // Akkusativ | Dativ | AkkDat — alles andere = keine Einschränkung
+  const kasusParam = url.searchParams.get('kasus');
+  const allowed = kasusParam === 'AkkDat' ? ['Akkusativ', 'Dativ']
+    : kasusParam === 'Akkusativ' || kasusParam === 'Dativ' ? [kasusParam] : null;
 
   const sb = getSupabaseAdmin();
 
@@ -88,7 +92,10 @@ export async function GET(req: Request) {
     g.hardness = Math.max(g.hardness, difficulty + (c.lapses ?? 0) * 2);
   }
 
-  const groups = [...map.values()];
+  const groups = [...map.values()].filter((g) => {
+    if (allowed) g.rektionen = g.rektionen.filter((r) => allowed.includes(r.kasus));
+    return !allowed || g.rektionen.length > 0;
+  });
   const hasCloze = new Set(groups.filter((g) => firstCloze(g.examples, g.rektionen)));
   const byHardness = (a: VerbGroup, b: VerbGroup) => b.hardness - a.hardness;
 
