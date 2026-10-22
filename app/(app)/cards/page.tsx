@@ -31,6 +31,7 @@ type Card = {
   word_type: string | null;
   gender: string | null;
   plural: string | null;
+  forms: Record<string, unknown> | null;
   examples: { de: string; ru: string }[] | null;
   due_at: string | null;
   reps: number;
@@ -47,7 +48,7 @@ type CardsResponse = {
   limit: number;
 };
 
-type EditDraft = { front: string; back: string; tags: string };
+type EditDraft = { front: string; back: string; tags: string; praep: string; kasus: string };
 
 const KIND_BADGE_CLASS: Record<CardKind, string> = {
   vocab: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
@@ -98,7 +99,7 @@ export default function CardsPage() {
 
   // Inline edit state
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<EditDraft>({ front: '', back: '', tags: '' });
+  const [editDraft, setEditDraft] = useState<EditDraft>({ front: '', back: '', tags: '', praep: '', kasus: '' });
   const [savingEdit, setSavingEdit] = useState(false);
 
   // `/` key focuses search
@@ -164,6 +165,8 @@ export default function CardsPage() {
       front: card.front,
       back: card.back,
       tags: (card.tags ?? []).join(', '),
+      praep: (card.forms?.praeposition as string) ?? '',
+      kasus: (card.forms?.kasus as string) ?? '',
     });
   }
 
@@ -189,14 +192,18 @@ export default function CardsPage() {
         .map((tg) => tg.trim())
         .filter(Boolean);
 
+      // Rektion nur bei Verben; bestehende Verbformen bleiben erhalten
+      const body: Record<string, unknown> = { front: editDraft.front.trim(), back: editDraft.back.trim(), tags };
+      if (card.word_type === 'verb') {
+        const forms: Record<string, unknown> = { ...(card.forms ?? {}) };
+        if (editDraft.praep.trim()) forms.praeposition = editDraft.praep.trim().toLowerCase(); else delete forms.praeposition;
+        if (editDraft.kasus) forms.kasus = editDraft.kasus; else delete forms.kasus;
+        body.forms = Object.keys(forms).length ? forms : null;
+      }
       const res = await fetch(`/api/cards/${card.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          front: editDraft.front.trim(),
-          back: editDraft.back.trim(),
-          tags,
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -659,6 +666,36 @@ export default function CardsPage() {
                               className="sm:max-w-xs"
                             />
                           </div>
+                          {card.word_type === 'verb' && (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div className="grid gap-1">
+                                <label className="text-xs font-medium text-muted-foreground">{t('card_label_praep')}</label>
+                                <Input
+                                  value={editDraft.praep}
+                                  onChange={(e) => setEditDraft((d) => ({ ...d, praep: e.target.value }))}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') saveEdit(card);
+                                    if (e.key === 'Escape') cancelEdit();
+                                  }}
+                                  placeholder="auf"
+                                  autoCapitalize="off"
+                                />
+                              </div>
+                              <div className="grid gap-1">
+                                <label className="text-xs font-medium text-muted-foreground">{t('card_label_kasus')}</label>
+                                <select
+                                  value={editDraft.kasus}
+                                  onChange={(e) => setEditDraft((d) => ({ ...d, kasus: e.target.value }))}
+                                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                >
+                                  <option value="">—</option>
+                                  <option value="Akkusativ">Akkusativ</option>
+                                  <option value="Dativ">Dativ</option>
+                                  <option value="Genitiv">Genitiv</option>
+                                </select>
+                              </div>
+                            </div>
+                          )}
                           <div className="flex flex-wrap items-center gap-2">
                             <Button
                               size="sm"
