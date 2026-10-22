@@ -2,7 +2,6 @@
 
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { toast } from 'sonner';
 import { Loader2, ArrowLeft, Plus, X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -56,6 +55,23 @@ export default function CardEditPage({ params }: PageProps) {
   const [praep, setPraep] = useState('');
   const [kasus, setKasus] = useState('');
 
+  // Signatur des gespeicherten Stands → ungespeicherte Änderungen erkennen
+  const [savedSig, setSavedSig] = useState('');
+  const sig = JSON.stringify([front, back, wordType, gender, plural, mnemonic, tagsInput, examples, praep, kasus]);
+  const dirty = !!card && sig !== savedSig;
+
+  // Tab schließen / Seite neu laden mit offenen Änderungen
+  useEffect(() => {
+    if (!dirty) return;
+    const h = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', h);
+    return () => window.removeEventListener('beforeunload', h);
+  }, [dirty]);
+
+  function leave() {
+    if (!dirty || window.confirm(t('card_unsaved_confirm'))) router.push('/cards');
+  }
+
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -76,6 +92,7 @@ export default function CardEditPage({ params }: PageProps) {
         const f = (c.forms ?? {}) as Record<string, unknown>;
         setPraep((f.praeposition as string) ?? '');
         setKasus((f.kasus as string) ?? '');
+        setSavedSig(JSON.stringify([c.front, c.back, c.word_type ?? '', c.gender ?? '', c.plural ?? '', c.mnemonic ?? '', (c.tags ?? []).join(', '), c.examples ?? [], (f.praeposition as string) ?? '', (f.kasus as string) ?? '']));
       } catch (e) {
         toast.error(t('card_load_error'), {
           description: e instanceof Error ? e.message : '',
@@ -135,7 +152,9 @@ export default function CardEditPage({ params }: PageProps) {
       }
       const data = await res.json();
       setCard(data.card);
+      setSavedSig(sig);
       toast.success(t('card_saved'));
+      router.push('/cards');
     } catch (e) {
       toast.error(t('card_save_error'), {
         description: e instanceof Error ? e.message : '',
@@ -204,10 +223,8 @@ export default function CardEditPage({ params }: PageProps) {
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-2xl">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/cards" aria-label={t('card_back_to_cards')}>
-            <ArrowLeft className="size-4" />
-          </Link>
+        <Button variant="ghost" size="icon" onClick={leave} aria-label={t('card_back_to_cards')}>
+          <ArrowLeft className="size-4" />
         </Button>
         <h1 className="text-xl font-semibold">{t('card_title')}</h1>
       </div>
@@ -377,9 +394,7 @@ export default function CardEditPage({ params }: PageProps) {
             {saving && <Loader2 className="size-4 mr-2 animate-spin" />}
             {t('card_save')}
           </Button>
-          <Button variant="outline" asChild>
-            <Link href="/cards">{t('card_cancel')}</Link>
-          </Button>
+          <Button variant="outline" onClick={leave}>{t('card_cancel')}</Button>
         </div>
       </div>
     </div>
