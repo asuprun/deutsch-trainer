@@ -1,4 +1,4 @@
-const CACHE = 'dt-v2';
+const CACHE = 'dt-v3';
 const PRECACHE = ['/', '/review', '/cards', '/upload'];
 
 self.addEventListener('install', (e) => {
@@ -27,7 +27,18 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Остальное — stale-while-revalidate
+  // Страницы — network-first: иначе после деплоя первым открытием видна старая версия
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).then((res) => {
+        if (res.ok) caches.open(CACHE).then((c) => c.put(e.request, res.clone()));
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Остальное (JS/CSS с хешем в имени, картинки) — stale-while-revalidate
   e.respondWith(
     caches.open(CACHE).then(async (cache) => {
       const cached = await cache.match(e.request);
