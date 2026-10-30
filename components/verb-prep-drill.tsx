@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2, X, RotateCw, Home, Check, XCircle, ArrowRight, Volume2 } from 'lucide-react';
+import { Loader2, X, RotateCw, Home, Check, XCircle, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useI18n } from '@/lib/i18n/context';
@@ -269,7 +269,7 @@ export function VerbPrepDrill({ count, sourceId, mode, hardOnly = false, kasusFi
           <div className="w-full max-w-sm flex flex-col gap-3">
             {checked ? (
               <Button size="lg" onClick={next} className="w-full">
-                {idx + 1 < verbs.length ? t('gramex_next') : t('gramex_finish')}<ArrowRight className="ml-2 size-4" />
+                {idx + 1 < verbs.length ? t('gramex_next') : t('gramex_finish')}
               </Button>
             ) : (
               <Button size="lg" onClick={check}

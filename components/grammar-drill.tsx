@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { X, RotateCw, Home, Check, XCircle, ArrowRight, Volume2 } from 'lucide-react';
+import { X, RotateCw, Home, Check, XCircle, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/lib/i18n/context';
 import { useTTSContext } from '@/lib/tts-context';
@@ -226,7 +226,7 @@ export function GrammarDrill({ count, topic, onExit }: Props) {
           <div className="w-full max-w-sm flex flex-col gap-3">
             {checked ? (
               <Button size="lg" onClick={next} className="w-full">
-                {idx + 1 < items.length ? t('gramex_next') : t('gramex_finish')}<ArrowRight className="ml-2 size-4" />
+                {idx + 1 < items.length ? t('gramex_next') : t('gramex_finish')}
               </Button>
             ) : (
               <Button size="lg" onClick={check} disabled={!ready} className="w-full">{t('gramex_check')}</Button>
