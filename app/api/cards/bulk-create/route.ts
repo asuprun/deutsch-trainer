@@ -83,6 +83,13 @@ export async function POST(req: Request) {
 
   // «warten» + «warten auf» -> EINE Verbkarte mit forms.praeposition (deterministisch,
   // unabhängig davon ob das Modell die Prompt-Anweisung befolgt hat).
+  // leere Rektion-Felder (Modell liefert "" statt Weglassen) vorher entfernen
+  for (const c of cards) {
+    const f = c.forms as Record<string, unknown> | null | undefined;
+    if (f && !String(f.praeposition ?? '').trim()) { delete f.praeposition; delete f.kasus; }
+    if (f) for (const k of Object.keys(f)) if (f[k] === '') delete f[k];
+    if (f && !Object.keys(f).length) c.forms = null;
+  }
   const mergedCards = consolidateVerbPrepositions(cards);
 
   const cardRows = mergedCards.map((c) => {

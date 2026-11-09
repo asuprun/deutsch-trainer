@@ -23,7 +23,7 @@ export const EXTRACT_SYSTEM_PROMPT = `
 - infinitiv, praesens (3-е лицо), praeteritum, partizip_2
 - hilfsverb ("haben" или "sein")
 - trennbar (true/false) — отделяемый ли
-- если у глагола есть фиксированный предлог (warten auf, denken an) — praeposition ("auf") и kasus ("Akkusativ"/"Dativ"/"Genitiv"); иначе оставь пустыми
+- praeposition ("auf") и kasus ("Akkusativ"/"Dativ"/"Genitiv") — ВСЕГДА присутствуют. Если у глагола есть фиксированный предлог (warten auf, denken an) — заполни их, даже если предлога нет на скрине (возьми из своих знаний); если фиксированного предлога нет — пустые строки
 
 Для прилагательных в forms укажи komparativ и superlativ, если они нестандартные.
 
@@ -33,6 +33,7 @@ export const EXTRACT_SYSTEM_PROMPT = `
 - Создавай ОДНУ карту-глагол (de = инфинитив без предлога, напр. «warten»), а предлог и падеж клади в forms.praeposition ("auf") и forms.kasus ("Akkusativ"/"Dativ"/"Genitiv").
 - НЕ создавай отдельную карту для «глагол + предлог» («warten auf») и НЕ создавай отдельные слова для самих предлогов (auf, an, für…).
 - Если у одного глагола несколько предлогов с разным значением (sich freuen auf/über) — отдельная карта-глагол на каждый предлог.
+- Это относится и к глаголам БЕЗ предлога на скрине: если глагол обычно употребляется с фиксированным предлогом (erzählen von/über, warten auf, denken an, teilnehmen an) — добавь управление из своих знаний; для глаголов без фиксированного предлога (essen, gehen) оставь praeposition/kasus пустыми.
 
 ЧТО НЕ ВКЛЮЧАТЬ:
 - Очевидные служебные слова (der/die/das/ein/eine как артикли, союзы und/oder/aber, ich/du/er/sie).
@@ -86,10 +87,13 @@ export const extractResponseSchema: ResponseSchema = {
               komparativ: { type: SchemaType.STRING },
               superlativ: { type: SchemaType.STRING },
             },
+            // Pflichtfelder (leer erlaubt), sonst lässt das Lite-Modell die Rektion weg
+            required: ['praeposition', 'kasus'],
           },
           level: { type: SchemaType.STRING },
         },
-        required: ['de', 'ru', 'word_type'],
+        // forms Pflicht, sonst lässt das Lite-Modell das ganze Objekt (und die Rektion) weg
+        required: ['de', 'ru', 'word_type', 'forms'],
       },
     },
     phrases: {
