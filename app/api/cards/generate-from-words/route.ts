@@ -36,9 +36,13 @@ const responseSchema: ResponseSchema = {
               partizip_2:   { type: SchemaType.STRING },
               hilfsverb:    { type: SchemaType.STRING },
               trennbar:     { type: SchemaType.STRING },
+              praeposition: { type: SchemaType.STRING },
+              kasus:        { type: SchemaType.STRING },
               komparativ:   { type: SchemaType.STRING },
               superlativ:   { type: SchemaType.STRING },
             },
+            // Pflichtfelder (leer erlaubt), sonst lässt das Lite-Modell die Rektion einfach weg
+            required: ['praeposition', 'kasus'],
           },
           examples: {
             type: SchemaType.ARRAY,
@@ -63,7 +67,7 @@ const responseSchema: ResponseSchema = {
   required: ['cards'],
 };
 
-const SYSTEM_PROMPT = `Ты — преподаватель немецкого языка. Для каждого переданного слова или фразы создай карточку. Для существительных укажи артикль в front (например: 'der Hund'), gender, plural. Для глаголов укажи forms: {infinitiv, praesens (3-е лицо ед.ч., напр. «er wächst» → «wächst»), praeteritum, partizip_2, hilfsverb, trennbar}. Для прилагательных — forms: {komparativ, superlativ} если неправильные. Перевод на русский в back. Добавь 1-2 примера. Верни JSON по схеме.`;
+const SYSTEM_PROMPT = `Ты — преподаватель немецкого языка. Для каждого переданного слова или фразы создай карточку. Для существительных укажи артикль в front (например: 'der Hund'), gender, plural. Для глаголов укажи forms: {infinitiv, praesens (3-е лицо ед.ч., напр. «er wächst» → «wächst»), praeteritum, partizip_2, hilfsverb, trennbar, praeposition, kasus} (praeposition/kasus всегда присутствуют, для слов без предлога — пустая строка). Если у глагола есть фиксированный предлог (warten auf, denken an, sich freuen über) — заполни praeposition (один предлог, напр. «auf») и kasus (Akkusativ/Dativ/Genitiv — падеж после этого предлога); иначе оставь пустыми. Если у глагола НЕСКОЛЬКО управлений с разными предлогами (erzählen von + Dativ / über + Akkusativ) — создай отдельную карточку на каждое управление с одинаковым front (инфинитив без предлога) и в примерах используй именно этот предлог. Для прилагательных — forms: {komparativ, superlativ} если неправильные. Перевод на русский в back. Добавь 1-2 примера. Верни JSON по схеме.`;
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -91,7 +95,15 @@ export async function POST(req: Request) {
       return JSON.parse(res.response.text());
     });
 
-    const cards = data.cards ?? [];
+    // Rektion normalisieren: ein Präp. pro Karte, Kasus großgeschrieben, leere Felder weg
+    const cards = (data.cards ?? []).map((c: { forms?: Record<string, string> }) => {
+      const f = { ...(c.forms ?? {}) };
+      const prep = (f.praeposition ?? '').trim().toLowerCase().split(/[/,;]| oder | und /i)[0].trim();
+      const k = (f.kasus ?? '').trim().toLowerCase();
+      if (prep) { f.praeposition = prep; f.kasus = k.charAt(0).toUpperCase() + k.slice(1); }
+      else { delete f.praeposition; delete f.kasus; }
+      return { ...c, forms: f };
+    });
     return NextResponse.json({ cards });
   } catch (e) {
     const raw = e instanceof Error ? e.message : 'Gemini error';
