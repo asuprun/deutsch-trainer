@@ -57,6 +57,8 @@ const createSchema = z.object({
   tags: z.array(z.string().max(50)).max(20).default([]),
   word_type: z.string().max(40).nullable().optional(),
   gender: z.string().max(10).nullable().optional(),
+  forms: z.record(z.string(), z.unknown()).nullable().optional(),
+  source_id: z.string().uuid().nullable().optional(),
 });
 
 export async function POST(req: Request) {

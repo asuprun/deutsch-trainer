@@ -34,6 +34,10 @@ const DATIV_RECTION = new Set([
   'warnen vor', 'fliehen vor', 'schützen vor', 'fürchten vor', 'sich fürchten vor',
 ]);
 
+type Kasus = 'Akkusativ' | 'Dativ';
+// Expliziter Kasus am Zeilenende: «warten auf + Akk», «erzählen von + Dativ»
+const KASUS_SUFFIX = /\s*\+\s*(akk(?:usativ)?|dat(?:iv)?)\.?\s*$/i;
+
 function kasusFor(lemma: string, prep: string): 'Akkusativ' | 'Dativ' {
   if (DATIV_RECTION.has(`${lemma} ${prep}`)) return 'Dativ';
   return PREP_KASUS[prep] ?? 'Akkusativ';
@@ -50,8 +54,10 @@ export interface Consolidatable {
 }
 
 /** Zerlegt «(sich) VERB PRÄP» in Verb + Präposition, sonst null. */
-function splitCombo(front: string): { verb: string; prep: string; reflexive: boolean } | null {
-  const tokens = front.trim().split(/\s+/);
+function splitCombo(front: string): { verb: string; prep: string; reflexive: boolean; kasus?: Kasus } | null {
+  const m = front.match(KASUS_SUFFIX);
+  const kasus: Kasus | undefined = m ? (m[1].toLowerCase().startsWith('a') ? 'Akkusativ' : 'Dativ') : undefined;
+  const tokens = front.replace(KASUS_SUFFIX, '').trim().split(/\s+/);
   if (tokens.length < 2) return null;
   const prep = tokens[tokens.length - 1].toLowerCase();
   if (!PREPS.has(prep)) return null;
@@ -60,14 +66,14 @@ function splitCombo(front: string): { verb: string; prep: string; reflexive: boo
   const lemma = verbPart.replace(/^sich\s+/i, '');
   // muss wie ein Verb aussehen (-en / -ern / -eln / -n)
   if (!/(?:en|ern|eln|n)$/i.test(lemma)) return null;
-  return { verb: verbPart, prep, reflexive };
+  return { verb: verbPart, prep, reflexive, kasus };
 }
 
-function applyPrep<T extends Consolidatable>(card: T, lemma: string, prep: string, reflexive: boolean): void {
+function applyPrep<T extends Consolidatable>(card: T, lemma: string, prep: string, reflexive: boolean, kasus?: Kasus): void {
   if (reflexive && !/^sich\s+/i.test(card.front)) card.front = `sich ${card.front.trim()}`;
   const forms: Record<string, unknown> = { ...(card.forms ?? {}) };
   forms.praeposition = prep;
-  forms.kasus = kasusFor(lemma, prep);
+  forms.kasus = kasus ?? kasusFor(lemma, prep);
   if (forms.infinitiv) forms.infinitiv = card.front;
   card.forms = forms;
   card.word_type = 'verb';
@@ -85,7 +91,7 @@ export function consolidateVerbPrepositions<T extends Consolidatable>(cards: T[]
   }
 
   // Kombi-Karten je Lemma sammeln
-  const combos = new Map<string, { prep: string; reflexive: boolean; card: T }[]>();
+  const combos = new Map<string, { prep: string; reflexive: boolean; kasus?: Kasus; card: T }[]>();
   const drop = new Set<T>();
   for (const c of cards) {
     // Kombis können als Vokabel ODER als Phrase («warten auf») ankommen
@@ -94,7 +100,7 @@ export function consolidateVerbPrepositions<T extends Consolidatable>(cards: T[]
     if (!parsed) continue;
     const lemma = parsed.verb.replace(/^sich\s+/i, '').toLowerCase();
     if (!combos.has(lemma)) combos.set(lemma, []);
-    combos.get(lemma)!.push({ prep: parsed.prep, reflexive: parsed.reflexive, card: c });
+    combos.get(lemma)!.push({ prep: parsed.prep, reflexive: parsed.reflexive, kasus: parsed.kasus, card: c });
     drop.add(c);
   }
 
@@ -112,12 +118,12 @@ export function consolidateVerbPrepositions<T extends Consolidatable>(cards: T[]
       // "PRÄP" aus dem front entfernen
       base.front = uniq[0].reflexive ? `sich ${lemma}` : lemma;
     }
-    applyPrep(base, lemma, uniq[0].prep, uniq[0].reflexive);
+    applyPrep(base, lemma, uniq[0].prep, uniq[0].reflexive, uniq[0].kasus);
 
     // weitere Präpositionen -> geklonte Verbkarten
     for (const co of uniq.slice(1)) {
       const clone = { ...base, forms: { ...(base.forms ?? {}) } } as T;
-      applyPrep(clone, lemma, co.prep, co.reflexive);
+      applyPrep(clone, lemma, co.prep, co.reflexive, co.kasus);
       add.push(clone);
     }
   }

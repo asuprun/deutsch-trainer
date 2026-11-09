@@ -3,6 +3,7 @@ import { createEmptyCard } from 'ts-fsrs';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { normalizeTags } from '@/lib/utils';
 import { parseWordList } from '@/lib/import/parse-wordlist';
+import { consolidateVerbPrepositions } from '@/lib/verbs/consolidate';
 
 export const runtime = 'nodejs';
 
@@ -57,13 +58,21 @@ export async function POST(req: Request) {
     return err('DB_ERROR', srcErr?.message ?? 'source insert failed', 500);
   }
 
-  const rows = valid.map((r) => ({
-    source_id: sourceRow.id,
-    kind: 'vocab' as const,
+  // «warten auf» / «erzählen von + Dativ» → Verbkarte mit forms.praeposition/kasus
+  // (mehrere Rektionen eines Verbs → je eine Karte, wie im Präpositions-Drill erwartet)
+  const cards = consolidateVerbPrepositions(valid.map((r) => ({
+    kind: 'vocab' as string,
     front: r.front.slice(0, 500),
     back: r.back.slice(0, 2000),
+    word_type: null as string | null,
+    forms: null as Record<string, unknown> | null,
     examples: r.example ? [{ de: r.example.slice(0, 500), ru: '' }] : null,
     tags: normalizeTags(r.tags).slice(0, 20),
+  })));
+
+  const rows = cards.map((c) => ({
+    ...c,
+    source_id: sourceRow.id,
     fsrs_state: fsrsBase,
     due_at: fsrsBase.due ?? now,
   }));

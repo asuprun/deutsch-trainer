@@ -174,6 +174,39 @@ export default function CardsPage() {
     setEditingId(null);
   }
 
+  // Zweite Rektion desselben Verbs (z.B. erzählen von+Dativ / über+Akkusativ):
+  // Geschwisterkarte mit den Werten aus den Feldern; Drill gruppiert nach front.
+  async function addRektion(card: Card) {
+    if (!editDraft.praep.trim() || !editDraft.kasus) return;
+    setSavingEdit(true);
+    try {
+      const res = await fetch('/api/cards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          front: card.front,
+          back: card.back,
+          kind: card.kind,
+          word_type: card.word_type,
+          source_id: card.source_id,
+          tags: card.tags ?? [],
+          forms: { ...(card.forms ?? {}), praeposition: editDraft.praep.trim().toLowerCase(), kasus: editDraft.kasus },
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
+      }
+      toast.success(t('cards_rektion_added'));
+      setEditingId(null);
+      fetchCards();
+    } catch (e) {
+      toast.error(t('cards_save_error'), { description: e instanceof Error ? e.message : '' });
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
   async function saveEdit(card: Card) {
     const frontChanged = editDraft.front.trim() !== card.front;
     const backChanged = editDraft.back.trim() !== card.back;
@@ -712,6 +745,17 @@ export default function CardsPage() {
                             <Button size="sm" variant="outline" onClick={cancelEdit}>
                               {t('cards_edit_cancel')}
                             </Button>
+                            {card.word_type === 'verb' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => addRektion(card)}
+                                disabled={savingEdit || !editDraft.praep.trim() || !editDraft.kasus}
+                                title={t('cards_rektion_hint')}
+                              >
+                                {t('cards_rektion_add')}
+                              </Button>
+                            )}
                             <Button
                               size="sm"
                               variant="ghost"
